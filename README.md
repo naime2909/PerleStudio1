@@ -1,7 +1,6 @@
 # 🌟 PerleDesign Studio
 
-Application web professionnelle pour créer et concevoir des bracelets en perles Miyuki avec intelligence artificielle.
-
+Application web professionnelle pour créer et concevoir des bracelets en perles Miyuki.
 ![PerleDesign](https://img.shields.io/badge/Version-1.0.0-blue) ![React](https://img.shields.io/badge/React-18.2-61DAFB?logo=react) ![TypeScript](https://img.shields.io/badge/TypeScript-5.2-3178C6?logo=typescript) ![Vite](https://img.shields.io/badge/Vite-5.1-646CFF?logo=vite)
 
 ## ✨ Fonctionnalités
