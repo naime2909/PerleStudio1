@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { BeadType, BraceletSettings, ProjectState } from '../types';
-import { ClipboardList, Ruler, ShoppingCart, Minus, Plus } from 'lucide-react';
+import { ClipboardList, Ruler, ShoppingCart, Minus, Plus, FileDown } from 'lucide-react';
 
 interface StatsPanelProps {
   project: ProjectState;
@@ -39,12 +39,174 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
   });
   const totalBeads = Object.values(inventory).reduce((a, b) => a + b, 0);
 
+  const generatePDF = async () => {
+    try {
+      // Dynamically import jsPDF
+      const { jsPDF } = await import('jspdf');
+      const html2canvas = (await import('html2canvas')).default;
+
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      
+      // Title
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('PERLE DESIGN STUDIO', pageWidth / 2, 15, { align: 'center' });
+      doc.setFontSize(14);
+      doc.text('Fiche Technique', pageWidth / 2, 22, { align: 'center' });
+      
+      doc.setLineWidth(0.5);
+      doc.line(15, 25, pageWidth - 15, 25);
+
+      // Get preview canvas (horizontal bracelet view)
+      const previewElement = document.querySelector('[data-visual-preview]') as HTMLElement;
+      let yOffset = 30;
+      
+      if (previewElement) {
+        try {
+          const canvas = await html2canvas(previewElement, {
+            backgroundColor: '#f8fafc',
+            scale: 2
+          });
+          const imgData = canvas.toDataURL('image/png');
+          const imgWidth = pageWidth - 30;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          doc.addImage(imgData, 'PNG', 15, yOffset, imgWidth, Math.min(imgHeight, 40));
+          yOffset += Math.min(imgHeight, 40) + 10;
+        } catch (err) {
+          console.warn('Could not capture preview:', err);
+          yOffset += 5;
+        }
+      }
+
+      // Left: Grid schema (simplified)
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Schéma de la Grille', 15, yOffset);
+      yOffset += 7;
+      
+      const gridStartY = yOffset;
+      const cellSize = 3;
+      const maxCols = Math.min(project.columns, 20);
+      const maxRows = Math.min(project.rows, 30);
+      
+      // Draw grid
+      doc.setFontSize(6);
+      doc.setFont('helvetica', 'normal');
+      for (let c = 0; c < maxCols; c++) {
+        doc.text((c + 1).toString(), 20 + c * cellSize, gridStartY - 1, { align: 'center' });
+      }
+      
+      for (let r = 0; r < maxRows; r++) {
+        doc.text((r + 1).toString(), 16, gridStartY + r * cellSize + 1.5);
+        
+        for (let c = 0; c < maxCols; c++) {
+          const beadId = project.grid[`${r}-${c}`];
+          const bead = beadTypes.find(b => b.id === beadId);
+          
+          if (bead) {
+            doc.setFillColor(bead.hex);
+            doc.rect(20 + c * cellSize, gridStartY + r * cellSize, cellSize, cellSize, 'F');
+          }
+          doc.rect(20 + c * cellSize, gridStartY + r * cellSize, cellSize, cellSize, 'S');
+        }
+      }
+
+      const gridEndY = gridStartY + maxRows * cellSize + 5;
+      
+      // Right side info
+      const rightX = 110;
+      let rightY = gridStartY;
+      
+      // Material list
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Matériel Nécessaire', rightX, rightY);
+      rightY += 7;
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      
+      if (totalBeads === 0) {
+        doc.text('Aucune perle utilisée', rightX, rightY);
+        rightY += 6;
+      } else {
+        Object.entries(inventory).forEach(([beadId, count]) => {
+          const bead = beadTypes.find(b => b.id === beadId);
+          if (!bead) return;
+          
+          const grams = (count * 0.005).toFixed(1);
+          doc.setFillColor(bead.hex);
+          doc.rect(rightX, rightY - 3, 4, 4, 'F');
+          doc.rect(rightX, rightY - 3, 4, 4, 'S');
+          
+          doc.text(`${bead.name}: ${count} perles (~${grams}g)`, rightX + 6, rightY);
+          rightY += 5;
+        });
+      }
+      
+      rightY += 3;
+      
+      // Dimensions
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Dimensions', rightX, rightY);
+      rightY += 7;
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Largeur: ${braceletWidthCm.toFixed(1)} cm (${project.columns} colonnes)`, rightX, rightY);
+      rightY += 5;
+      doc.text(`Longueur: ${braceletLengthCm.toFixed(1)} cm (${project.rows} rangs)`, rightX, rightY);
+      rightY += 5;
+      doc.text(`Tour de poignet: ${settings.wristSizeCm} cm`, rightX, rightY);
+      rightY += 8;
+      
+      // Info
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Informations', rightX, rightY);
+      rightY += 7;
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      const beadSizeLabel = beadSizes.find(s => s.value === settings.beadSizeMm)?.label || 'Delica 11/0';
+      doc.text(`Type: ${beadSizeLabel}`, rightX, rightY);
+      rightY += 5;
+      doc.text(`Mode: ${project.mode === 'loom' ? 'Loom' : 'Peyote'}`, rightX, rightY);
+      rightY += 5;
+      doc.text(`Date: ${new Date().toLocaleDateString('fr-FR')}`, rightX, rightY);
+      
+      // Footer
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text('Créé avec PerleDesign Studio', pageWidth / 2, pageHeight - 10, { align: 'center' });
+      
+      // Save
+      doc.save('fiche-technique-bracelet.pdf');
+    } catch (error) {
+      console.error('Erreur génération PDF:', error);
+      alert('Erreur lors de la génération du PDF. Assurez-vous que votre navigateur supporte cette fonctionnalité.');
+    }
+  };
+
   return (
     <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 h-full flex flex-col">
-      <h3 className="font-semibold text-slate-700 mb-4 flex items-center gap-2">
-        <ClipboardList size={20} className="text-indigo-600"/>
-        Fiche Technique
-      </h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-semibold text-slate-700 flex items-center gap-2">
+          <ClipboardList size={20} className="text-indigo-600"/>
+          Fiche Technique
+        </h3>
+        <button
+          onClick={generatePDF}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+          title="Télécharger la fiche technique en PDF"
+        >
+          <FileDown size={16} />
+          PDF
+        </button>
+      </div>
 
       <div className="space-y-6 flex-1 overflow-y-auto pr-1 scrollbar-thin">
         {/* Settings */}
