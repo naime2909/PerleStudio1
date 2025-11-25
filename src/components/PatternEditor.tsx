@@ -23,12 +23,15 @@ interface PatternEditorProps {
   onUpdateGrid: (updates: {r: number, c: number, beadId: string | null}[]) => void;
   onFillRow: (row: number) => void;
   onFillCol: (col: number) => void;
+  onOverlayUpdate?: (overlay: OverlayImage) => void;
+  isOverlayLocked?: boolean;
 }
 
 const PatternEditor: React.FC<PatternEditorProps> = ({ 
   mode, columns, rows, grid, beadTypes, selectedBeadId, toolMode, isFilled = true, overlay, zoomLevel = 1,
   selection, onSelectionChange, clipboard, onPaste,
-  onUpdateGrid, onFillRow, onFillCol
+  onUpdateGrid, onFillRow, onFillCol,
+  onOverlayUpdate, isOverlayLocked = false
 }) => {
   // State for dragging shapes (Rectangle, Circle, Select)
   const [isDragging, setIsDragging] = useState(false);
@@ -42,6 +45,10 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
   const [isPanning, setIsPanning] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [panStart, setPanStart] = useState({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
+
+  // State for dragging overlay image
+  const [isDraggingOverlay, setIsDraggingOverlay] = useState(false);
+  const [overlayDragStart, setOverlayDragStart] = useState({ x: 0, y: 0, overlayX: 0, overlayY: 0 });
 
   // Responsive Cell Sizes
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
@@ -89,6 +96,75 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
       scrollContainerRef.current.scrollTop = panStart.scrollTop - dy;
     }
   };
+
+  // --- Drag & Drop de l'Overlay ---
+  const handleOverlayMouseDown = (e: React.MouseEvent) => {
+    if (!overlay || isOverlayLocked) return;
+    e.stopPropagation();
+    e.preventDefault();
+    setIsDraggingOverlay(true);
+    setOverlayDragStart({
+      x: e.clientX,
+      y: e.clientY,
+      overlayX: overlay.x,
+      overlayY: overlay.y
+    });
+  };
+
+  const handleOverlayTouchStart = (e: React.TouchEvent) => {
+    if (!overlay || isOverlayLocked) return;
+    e.stopPropagation();
+    const touch = e.touches[0];
+    setIsDraggingOverlay(true);
+    setOverlayDragStart({
+      x: touch.clientX,
+      y: touch.clientY,
+      overlayX: overlay.x,
+      overlayY: overlay.y
+    });
+  };
+
+  const handleOverlayMove = (clientX: number, clientY: number) => {
+    if (!isDraggingOverlay || !overlay) return;
+    
+    const deltaX = (clientX - overlayDragStart.x) / zoomLevel;
+    const deltaY = (clientY - overlayDragStart.y) / zoomLevel;
+    
+    const newOverlay = {
+      ...overlay,
+      x: overlayDragStart.overlayX + deltaX,
+      y: overlayDragStart.overlayY + deltaY
+    };
+    
+    if (onOverlayUpdate) {
+      onOverlayUpdate(newOverlay);
+    }
+  };
+
+  const handleOverlayMouseMove = (e: React.MouseEvent) => {
+    if (isDraggingOverlay) {
+      handleOverlayMove(e.clientX, e.clientY);
+    }
+  };
+
+  const handleOverlayTouchMove = (e: React.TouchEvent) => {
+    if (!isDraggingOverlay) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    handleOverlayMove(touch.clientX, touch.clientY);
+  };
+
+  const handleOverlayDragEnd = () => {
+    setIsDraggingOverlay(false);
+  };
+
+  useEffect(() => {
+    if (isDraggingOverlay) {
+      const handleMouseUp = () => handleOverlayDragEnd();
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => window.removeEventListener('mouseup', handleMouseUp);
+    }
+  }, [isDraggingOverlay]);
 
   // --- Algorithmes de Formes ---
 
@@ -388,22 +464,30 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                 {/* Overlay Image */}
                 {overlay && (
                     <div 
-                        className="absolute pointer-events-none"
+                        className={`absolute ${!isOverlayLocked ? 'cursor-move' : 'cursor-default'}`}
                         style={{
-                            top: overlay.y,
-                            left: overlay.x,
-                            zIndex: overlay.layer === 'front' ? 15 : 1
+                            top: overlay.y * zoomLevel,
+                            left: overlay.x * zoomLevel,
+                            zIndex: overlay.layer === 'front' ? 15 : 1,
+                            pointerEvents: isOverlayLocked ? 'none' : 'auto'
                         }}
+                        onMouseDown={!isOverlayLocked ? handleOverlayMouseDown : undefined}
+                        onMouseMove={handleOverlayMouseMove}
+                        onTouchStart={!isOverlayLocked ? handleOverlayTouchStart : undefined}
+                        onTouchMove={handleOverlayTouchMove}
+                        onTouchEnd={handleOverlayDragEnd}
                     >
                         <img 
                             src={overlay.dataUrl} 
                             alt="overlay" 
-                            className="max-w-none max-h-none"
+                            className="max-w-none max-h-none select-none"
+                            draggable={false}
                             style={{
                                 opacity: overlay.opacity,
                                 transform: `scale(${overlay.scale * zoomLevel})`,
                                 transformOrigin: 'top left',
-                                userSelect: 'none'
+                                userSelect: 'none',
+                                pointerEvents: 'none'
                             }}
                         />
                     </div>
