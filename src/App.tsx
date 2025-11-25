@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { BeadType, BraceletSettings, ProjectState, PatternMode, ToolMode, OverlayImage, PatternGrid, SelectionArea, ClipboardData, MaterialType } from './types';
 import { DEFAULT_BEADS, WRIST_SIZES, BEAD_SIZES, EDITOR_CONSTANTS, PRESET_COLORS } from './constants';
@@ -393,6 +394,8 @@ const App: React.FC = () => {
                 <h3 className="font-bold text-slate-800">Outils & Config</h3>
                 <button onClick={() => setIsSidebarOpen(false)} className="p-1 bg-slate-100 rounded-full">
                     <X size={20}/>
+                </button>
+            </div>
                 </button>
             </div>
 
@@ -924,3 +927,11 @@ const App: React.FC = () => {
                  </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;
