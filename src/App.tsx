@@ -6,6 +6,10 @@ import PatternEditor from './components/PatternEditor';
 import StatsPanel from './components/StatsPanel';
 import VisualPreview from './components/VisualPreview';
 import AIGenerator from './components/AIGenerator';
+import ProjectsPanel from './components/ProjectsPanel';
+import ImageConverter from './components/ImageConverter';
+import SettingsPanel from './components/SettingsPanel';
+import { useLocalStorage, AUTO_SAVE_INTERVAL } from './useLocalStorage';
 import { Info, Menu, X, Trash2, Eraser, Hand, Sparkles, Undo2, Redo2, Square, Circle, Pencil, Pentagon, CheckSquare, Palette, Grid, ClipboardList, Layout, Image as ImageIcon, Sliders, Crosshair, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Move, Layers, ZoomIn, ZoomOut, Scissors, Copy, ClipboardCopy, MousePointer2, Eye, EyeOff, Minus, Plus, Pipette, PaintBucket } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -50,6 +54,14 @@ const App: React.FC = () => {
   
   // Sidebar State
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  // Tab system
+  const [activeTab, setActiveTab] = useState<'editor' | 'projects' | 'converter' | 'settings'>('editor');
+  
+  // Project name & auto-save
+  const [projectName, setProjectName] = useState('Sans titre');
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const storage = useLocalStorage();
   
   // Mobile specific state
   const [mobileTab, setMobileTab] = useState<'editor' | 'specs'>('editor');
@@ -335,49 +347,157 @@ const App: React.FC = () => {
       });
   };
 
+  // New handlers for tabs
+  const handleLoadProject = (loadedProject: ProjectState, name: string) => {
+    setHistory([loadedProject]);
+    setHistoryIndex(0);
+    setProjectName(name);
+    setActiveTab('editor');
+  };
+
+  const handleNewProject = () => {
+    if (confirm('Créer un nouveau projet ?\n\nLe projet actuel sera sauvegardé automatiquement.')) {
+      storage.saveCurrentProject(project, projectName);
+      setHistory([{
+        mode: 'loom',
+        columns: 14,
+        rows: 50,
+        grid: {}
+      }]);
+      setHistoryIndex(0);
+      setProjectName('Sans titre');
+      setActiveTab('editor');
+    }
+  };
+
+  const handleApplyConvertedImage = (grid: PatternGrid, rows: number, columns: number) => {
+    const newProject: ProjectState = {
+      mode: project.mode,
+      columns,
+      rows,
+      grid
+    };
+    setHistory([newProject]);
+    setHistoryIndex(0);
+    setActiveTab('editor');
+  };
+
+  const formatLastSaved = () => {
+    if (!lastSaved) return '';
+    const diffMs = Date.now() - lastSaved.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffMs / 60000);
+    
+    if (diffSec < 60) return `Sauvegardé il y a ${diffSec}s`;
+    return `Sauvegardé il y a ${diffMin} min`;
+  };
+
+  // Auto-save project
+  useEffect(() => {
+    if (activeTab === 'editor') {
+      const timer = setInterval(() => {
+        storage.saveCurrentProject(project, projectName);
+        setLastSaved(new Date());
+      }, AUTO_SAVE_INTERVAL);
+
+      return () => clearInterval(timer);
+    }
+  }, [project, projectName, activeTab]);
+
+  // Load saved project on mount
+  useEffect(() => {
+    const saved = storage.loadCurrentProject();
+    if (saved && confirm(`Charger le projet "${saved.name}" ?`)) {
+      setHistory([saved.project]);
+      setHistoryIndex(0);
+      setProjectName(saved.name);
+    }
+  }, []);
+
   return (
     <div className="h-[100dvh] bg-slate-100 text-slate-800 font-sans flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 z-40 shrink-0 h-14 flex items-center px-4 justify-between shadow-sm">
-          <div className="flex items-center gap-2">
-            {/* Mobile Menu Toggle */}
-            <button 
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
-                className={`lg:hidden p-2 rounded-lg transition-colors ${isSidebarOpen ? 'bg-indigo-600 text-white shadow-md' : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'}`}
-                title="Menu"
-            >
-                <Menu size={20} />
-            </button>
-
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-lg hidden sm:flex">P</div>
-            <h1 className="text-lg font-bold text-slate-800">Perle<span className="text-indigo-600">Studio</span></h1>
+      <header className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white z-40 shrink-0 h-14 flex items-center px-4 justify-between shadow-lg">
+          <div className="flex items-center gap-4">
+            <div className="text-2xl">🎨</div>
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold">PerleDesign Studio</h1>
+              {activeTab === 'editor' && lastSaved && (
+                <p className="text-xs text-indigo-100">{formatLastSaved()}</p>
+              )}
+            </div>
           </div>
-          
-          <div className="flex items-center gap-2">
-             <button 
-                onClick={() => setShowPreview(!showPreview)} 
-                className={`p-2 rounded hover:bg-slate-100 transition-colors hidden sm:flex ${!showPreview ? 'text-indigo-600 bg-indigo-50' : ''}`} 
-                title={showPreview ? "Masquer l'aperçu" : "Afficher l'aperçu"}
-             >
-                 {showPreview ? <Eye size={18}/> : <EyeOff size={18}/>}
-             </button>
 
-             <button onClick={handleUndo} disabled={historyIndex === 0} className="p-2 rounded hover:bg-slate-100 disabled:opacity-30 transition-colors" title="Annuler (Ctrl+Z)">
-                 <Undo2 size={18}/>
-             </button>
-             <button onClick={handleRedo} disabled={historyIndex === history.length - 1} className="p-2 rounded hover:bg-slate-100 disabled:opacity-30 transition-colors" title="Rétablir (Ctrl+Y)">
-                 <Redo2 size={18}/>
-             </button>
-             <div className="w-px h-6 bg-slate-200 mx-2 hidden sm:block"></div>
-             <button onClick={() => setShowSpecs(true)} className="hidden sm:flex items-center gap-1 text-xs font-bold uppercase bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-colors">
-               <Info size={14} /> Guide
-             </button>
-          </div>
+          {activeTab === 'editor' && (
+            <div className="hidden lg:flex items-center gap-2">
+              <input
+                type="text"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                className="px-3 py-1 bg-white/20 border border-white/30 rounded text-white placeholder-indigo-200 text-sm focus:bg-white/30 focus:outline-none"
+                placeholder="Nom du projet"
+              />
+            </div>
+          )}
+
+          <button 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="lg:hidden p-2 bg-white/20 rounded hover:bg-white/30"
+          >
+            {isSidebarOpen ? <X size={24}/> : <Menu size={24}/>}
+          </button>
       </header>
+
+      {/* TABS NAVIGATION */}
+      <div className="bg-white border-b border-slate-200 px-4 flex gap-1 overflow-x-auto z-30">
+        <button
+          onClick={() => setActiveTab('editor')}
+          className={`px-4 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
+            activeTab === 'editor'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          📝 Éditeur
+        </button>
+        <button
+          onClick={() => setActiveTab('projects')}
+          className={`px-4 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
+            activeTab === 'projects'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          📁 Mes Projets
+        </button>
+        <button
+          onClick={() => setActiveTab('converter')}
+          className={`px-4 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
+            activeTab === 'converter'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          🖼️ Convertir Image
+        </button>
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={`px-4 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
+            activeTab === 'settings'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          ⚙️ Paramètres
+        </button>
+      </div>
 
       {/* Workspace */}
       <div className="flex-1 flex overflow-hidden relative min-h-0">
         
+        {/* EDITOR TAB */}
+        {activeTab === 'editor' && (
+        <>
         {/* SIDEBAR (Unified) */}
         <aside 
             className={`
@@ -766,6 +886,31 @@ const App: React.FC = () => {
             <ClipboardList size={20} />
             <span className="text-[10px] font-bold">Infos & Matériel</span>
          </button>
+      </div>
+      </>
+        )}
+
+        {/* PROJECTS TAB */}
+        {activeTab === 'projects' && (
+          <ProjectsPanel
+            onLoadProject={handleLoadProject}
+            onNewProject={handleNewProject}
+          />
+        )}
+
+        {/* CONVERTER TAB */}
+        {activeTab === 'converter' && (
+          <ImageConverter
+            beadTypes={activeBeads}
+            targetColumns={project.columns}
+            onApply={handleApplyConvertedImage}
+          />
+        )}
+
+        {/* SETTINGS TAB */}
+        {activeTab === 'settings' && (
+          <SettingsPanel />
+        )}
       </div>
 
       {/* PALETTE MANAGER MODAL (NEW) */}
