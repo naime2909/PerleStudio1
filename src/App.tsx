@@ -548,7 +548,7 @@ const App: React.FC = () => {
             <div className={`flex-1 flex flex-col min-h-0 ${mobileTab === 'specs' ? 'hidden lg:flex' : 'flex'}`}>
                 {/* TOP: Visual Preview (Horizontal Strip) - Conditional Render */}
                 {showPreview && (
-                    <div className="h-28 sm:h-48 shrink-0 p-2 sm:p-3 bg-slate-100/50 border-b border-slate-200 z-10 relative group">
+                    <div className="h-28 sm:h-48 shrink-0 p-2 sm:p-3 bg-slate-100/50 border-b border-slate-200 z-10 relative group" data-visual-preview>
                         <VisualPreview project={project} beadTypes={activeBeads} orientation="horizontal" />
                         <button 
                             onClick={() => setShowPreview(false)}
