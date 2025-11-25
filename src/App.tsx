@@ -869,7 +869,7 @@ const App: React.FC = () => {
         </aside>
 
       </div>
-
+)}
       {/* MOBILE BOTTOM NAV */}
       <div className="lg:hidden bg-white border-t border-slate-200 flex justify-around p-2 shrink-0 z-40">
          <button 
