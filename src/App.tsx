@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { BeadType, BraceletSettings, ProjectState, PatternMode, ToolMode, OverlayImage, PatternGrid, SelectionArea, ClipboardData, MaterialType } from './types';
 import { DEFAULT_BEADS, WRIST_SIZES, BEAD_SIZES, EDITOR_CONSTANTS, PRESET_COLORS } from './constants';
@@ -40,6 +39,7 @@ const App: React.FC = () => {
 
   // Overlay State (Image de calque)
   const [overlay, setOverlay] = useState<OverlayImage | null>(null);
+  const [isOverlayLocked, setIsOverlayLocked] = useState(false);
 
   // UI State
   const [showSpecs, setShowSpecs] = useState(false); // Used for modal on desktop, ignored on mobile
@@ -312,6 +312,10 @@ const App: React.FC = () => {
       }
   };
 
+  const handleOverlayUpdate = (newOverlay: OverlayImage) => {
+      setOverlay(newOverlay);
+  };
+
   const handleCenterOverlay = () => {
       if (!overlay) return;
       const isMobile = window.innerWidth < 640;
@@ -376,8 +380,13 @@ const App: React.FC = () => {
         {/* SIDEBAR (Unified) */}
         <aside 
             className={`
-                fixed inset-y-0 left-0 w-72 bg-white/95 backdrop-blur-sm border-r border-slate-200 flex flex-col z-30 shadow-2xl transition-transform duration-300 transform lg:translate-x-0 lg:relative lg:shadow-none lg:w-72 lg:bg-white
-                ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+                fixed z-30 bg-white/98 backdrop-blur-sm shadow-2xl transition-all duration-300 flex flex-col
+                
+                top-14 left-0 right-0 max-h-[65vh] w-full overflow-y-auto border-b border-slate-300
+                ${isSidebarOpen ? 'translate-y-0' : '-translate-y-full'}
+                
+                lg:translate-y-0 lg:translate-x-0 lg:inset-y-0 lg:left-0 lg:right-auto 
+                lg:w-72 lg:max-h-none lg:border-r lg:border-b-0 lg:shadow-none lg:relative
             `}
         >
             <div className="flex justify-between items-center p-4 border-b border-slate-100 lg:hidden">
@@ -513,6 +522,18 @@ const App: React.FC = () => {
                             >
                                 <Crosshair size={14} /> Centrer l'image
                             </button>
+
+                            <label className="flex items-center gap-2 p-2 bg-white border border-slate-200 rounded cursor-pointer hover:bg-slate-50 transition-colors">
+                                <input 
+                                    type="checkbox" 
+                                    checked={isOverlayLocked}
+                                    onChange={(e) => setIsOverlayLocked(e.target.checked)}
+                                    className="w-4 h-4 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                                />
+                                <span className="text-xs font-semibold text-slate-700">
+                                    🔒 Verrouiller l'image
+                                </span>
+                            </label>
                         </div>
                     )}
                 </div>
@@ -687,6 +708,8 @@ const App: React.FC = () => {
                                     handleUpdateGrid(updates);
                                 }
                             }}
+                            onOverlayUpdate={handleOverlayUpdate}
+                            isOverlayLocked={isOverlayLocked}
                         />
                     </div>
                 </div>
@@ -901,11 +924,3 @@ const App: React.FC = () => {
                  </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default App;
