@@ -396,8 +396,6 @@ const App: React.FC = () => {
                     <X size={20}/>
                 </button>
             </div>
-                </button>
-            </div>
 
             <div className="flex-1 overflow-y-auto scrollbar-thin">
                 
