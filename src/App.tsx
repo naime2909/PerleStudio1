@@ -449,7 +449,7 @@ const App: React.FC = () => {
       </header>
 
       {/* TABS NAVIGATION */}
-      <div className="bg-white border-b border-slate-200 px-4 flex gap-1 overflow-x-auto z-30">
+      <div className="bg-white border-b border-slate-200 px-4 flex gap-1 overflow-x-auto z-30 shrink-0">
         <button
           onClick={() => setActiveTab('editor')}
           className={`px-4 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
@@ -493,11 +493,8 @@ const App: React.FC = () => {
       </div>
 
       {/* Workspace */}
-      <div className="flex-1 flex overflow-hidden relative min-h-0">
+      <div className="flex-1 flex overflow-hidden relative min-h-0" style={{ display: activeTab === 'editor' ? 'flex' : 'none' }}>
         
-        {/* EDITOR TAB */}
-        {activeTab === 'editor' && (
-        <>
         {/* SIDEBAR (Unified) */}
         <aside 
             className={`
@@ -887,30 +884,27 @@ const App: React.FC = () => {
             <span className="text-[10px] font-bold">Infos & Matériel</span>
          </button>
       </div>
-      </>
-        )}
 
-        {/* PROJECTS TAB */}
-        {activeTab === 'projects' && (
-          <ProjectsPanel
-            onLoadProject={handleLoadProject}
-            onNewProject={handleNewProject}
-          />
-        )}
+      {/* PROJECTS TAB */}
+      <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'projects' ? 'flex' : 'none' }}>
+        <ProjectsPanel
+          onLoadProject={handleLoadProject}
+          onNewProject={handleNewProject}
+        />
+      </div>
 
-        {/* CONVERTER TAB */}
-        {activeTab === 'converter' && (
-          <ImageConverter
-            beadTypes={activeBeads}
-            targetColumns={project.columns}
-            onApply={handleApplyConvertedImage}
-          />
-        )}
+      {/* CONVERTER TAB */}
+      <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'converter' ? 'flex' : 'none' }}>
+        <ImageConverter
+          beadTypes={activeBeads}
+          targetColumns={project.columns}
+          onApply={handleApplyConvertedImage}
+        />
+      </div>
 
-        {/* SETTINGS TAB */}
-        {activeTab === 'settings' && (
-          <SettingsPanel />
-        )}
+      {/* SETTINGS TAB */}
+      <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'settings' ? 'flex' : 'none' }}>
+        <SettingsPanel />
       </div>
 
       {/* PALETTE MANAGER MODAL (NEW) */}
