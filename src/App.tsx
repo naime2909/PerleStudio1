@@ -7,7 +7,6 @@ import StatsPanel from './components/StatsPanel';
 import VisualPreview from './components/VisualPreview';
 import AIGenerator from './components/AIGenerator';
 import ProjectsPanel from './components/ProjectsPanel';
-import ImageConverter from './components/ImageConverter';
 import SettingsPanel from './components/SettingsPanel';
 import { useLocalStorage, AUTO_SAVE_INTERVAL } from './useLocalStorage';
 import { Info, Menu, X, Trash2, Eraser, Hand, Sparkles, Undo2, Redo2, Square, Circle, Pencil, Pentagon, CheckSquare, Palette, Grid, ClipboardList, Layout, Image as ImageIcon, Sliders, Crosshair, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Move, Layers, ZoomIn, ZoomOut, Scissors, Copy, ClipboardCopy, MousePointer2, Eye, EyeOff, Minus, Plus, Pipette, PaintBucket } from 'lucide-react';
@@ -56,7 +55,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Tab system
-  const [activeTab, setActiveTab] = useState<'editor' | 'projects' | 'converter' | 'settings'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'projects' | 'settings'>('editor');
   
   // Project name & auto-save
   const [projectName, setProjectName] = useState('Sans titre');
@@ -347,6 +346,144 @@ const App: React.FC = () => {
       });
   };
 
+  // Convert overlay image to beads
+  const handleConvertOverlayToBeads = () => {
+    if (!overlay) {
+      alert('Aucune image à convertir. Importez une image d\'abord !');
+      return;
+    }
+
+    if (!confirm('Convertir l\'image en perles ?\n\nCela va remplacer les perles actuelles dans la zone couverte par l\'image.')) {
+      return;
+    }
+
+    // Create a canvas to process the image
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return;
+
+      // Calculate which cells the overlay covers
+      const isMobile = window.innerWidth < 640;
+      const CONSTS = isMobile ? EDITOR_CONSTANTS.MOBILE : EDITOR_CONSTANTS.DESKTOP;
+      const cellWidth = CONSTS.CELL_WIDTH;
+      const cellHeight = CONSTS.CELL_HEIGHT;
+
+      // Image dimensions on screen
+      const imgWidth = overlay.width * overlay.scale;
+      const imgHeight = overlay.height * overlay.scale;
+
+      // Calculate start and end cells
+      const startCol = Math.max(0, Math.floor(overlay.x / cellWidth));
+      const endCol = Math.min(project.columns - 1, Math.ceil((overlay.x + imgWidth) / cellWidth));
+      const startRow = Math.max(0, Math.floor(overlay.y / cellHeight));
+      const endRow = Math.min(project.rows - 1, Math.ceil((overlay.y + imgHeight) / cellHeight));
+
+      const columns = endCol - startCol + 1;
+      const rows = endRow - startRow + 1;
+
+      if (columns <= 0 || rows <= 0) {
+        alert('L\'image est en dehors de la grille !');
+        return;
+      }
+
+      // Set canvas size to match the grid area
+      canvas.width = columns;
+      canvas.height = rows;
+
+      // Calculate the portion of the image to use
+      const sourceX = (startCol * cellWidth - overlay.x) / overlay.scale;
+      const sourceY = (startRow * cellHeight - overlay.y) / overlay.scale;
+      const sourceWidth = (columns * cellWidth) / overlay.scale;
+      const sourceHeight = (rows * cellHeight) / overlay.scale;
+
+      // Draw the relevant portion of the image
+      ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, columns, rows);
+
+      // Get pixel data
+      const imageData = ctx.getImageData(0, 0, columns, rows);
+      const pixels = imageData.data;
+
+      // Helper: Find closest bead color
+      const findClosestBead = (r: number, g: number, b: number): BeadType | null => {
+        if (activeBeads.length === 0) return null;
+
+        let closestBead = activeBeads[0];
+        let minDistance = Infinity;
+
+        activeBeads.forEach(bead => {
+          const hex = bead.hex.replace('#', '');
+          const br = parseInt(hex.substr(0, 2), 16);
+          const bg = parseInt(hex.substr(2, 2), 16);
+          const bb = parseInt(hex.substr(4, 2), 16);
+
+          const dist = Math.sqrt(
+            Math.pow(r - br, 2) +
+            Math.pow(g - bg, 2) +
+            Math.pow(b - bb, 2)
+          );
+
+          if (dist < minDistance) {
+            minDistance = dist;
+            closestBead = bead;
+          }
+        });
+
+        return closestBead;
+      };
+
+      // Convert pixels to beads
+      const updates: {r: number, c: number, beadId: string | null}[] = [];
+      
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < columns; col++) {
+          const index = (row * columns + col) * 4;
+          const red = pixels[index];
+          const green = pixels[index + 1];
+          const blue = pixels[index + 2];
+          const alpha = pixels[index + 3];
+
+          // Skip transparent pixels
+          if (alpha < 128) continue;
+
+          const bead = findClosestBead(red, green, blue);
+          if (bead) {
+            updates.push({
+              r: startRow + row,
+              c: startCol + col,
+              beadId: bead.id
+            });
+          }
+        }
+      }
+
+      // Apply updates
+      if (updates.length > 0) {
+        handleUpdateGrid(updates);
+        alert(`${updates.length} perles converties ! 🎨`);
+        // Optionally remove the overlay after conversion
+        // setOverlay(null);
+      } else {
+        alert('Aucune perle convertie. Vérifiez que l\'image n\'est pas transparente.');
+      }
+    };
+
+    img.src = overlay.dataUrl;
+  };
+
+  // Manual save project
+  const handleSaveProject = () => {
+    const saved = storage.saveCurrentProject(project, projectName);
+    if (saved) {
+      setLastSaved(new Date());
+      alert(`Projet "${projectName}" sauvegardé ! ✅`);
+    } else {
+      alert('Erreur lors de la sauvegarde.');
+    }
+  };
+
   // Handlers for tabs
   const handleLoadProject = (loadedProject: ProjectState, name: string) => {
     setHistory([loadedProject]);
@@ -368,18 +505,6 @@ const App: React.FC = () => {
       setProjectName('Sans titre');
       setActiveTab('editor');
     }
-  };
-
-  const handleApplyConvertedImage = (grid: PatternGrid, rows: number, columns: number) => {
-    const newProject: ProjectState = {
-      mode: project.mode,
-      columns,
-      rows,
-      grid
-    };
-    setHistory([newProject]);
-    setHistoryIndex(0);
-    setActiveTab('editor');
   };
 
   const formatLastSaved = () => {
@@ -471,16 +596,6 @@ const App: React.FC = () => {
           📁 Mes Projets
         </button>
         <button
-          onClick={() => setActiveTab('converter')}
-          className={`px-4 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
-            activeTab === 'converter'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          🖼️ Convertir Image
-        </button>
-        <button
           onClick={() => setActiveTab('settings')}
           className={`px-4 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
             activeTab === 'settings'
@@ -525,6 +640,14 @@ const App: React.FC = () => {
                         <button onClick={() => handleModeChange('loom')} className={`flex-1 py-1.5 text-xs font-bold rounded transition-colors ${project.mode === 'loom' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}>Loom</button>
                         <button onClick={() => handleModeChange('peyote')} className={`flex-1 py-1.5 text-xs font-bold rounded transition-colors ${project.mode === 'peyote' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}>Peyote</button>
                     </div>
+
+                    {/* Save Project Button */}
+                    <button 
+                        onClick={handleSaveProject}
+                        className="w-full flex items-center justify-center gap-2 p-2 bg-indigo-600 text-white text-xs font-bold rounded hover:bg-indigo-700 transition-colors shadow-sm mb-2"
+                    >
+                        <Copy size={14}/> 💾 Sauvegarder Projet
+                    </button>
 
                     {/* Dimensions REMOVED - Moved to StatsPanel */}
                     <p className="text-[9px] text-slate-400 mt-2 text-center italic">Pour changer la taille, voir "Infos & Matériel".</p>
@@ -639,6 +762,13 @@ const App: React.FC = () => {
                                 className="w-full flex items-center justify-center gap-1 p-1.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded hover:bg-indigo-100 transition-colors"
                             >
                                 <Crosshair size={14} /> Centrer l'image
+                            </button>
+
+                            <button 
+                                onClick={handleConvertOverlayToBeads}
+                                className="w-full flex items-center justify-center gap-1 p-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700 transition-colors shadow-sm"
+                            >
+                                <Sparkles size={14} /> Convertir en Perles
                             </button>
 
                             <label className="flex items-center gap-2 p-2 bg-white border border-slate-200 rounded cursor-pointer hover:bg-slate-50 transition-colors">
@@ -890,15 +1020,6 @@ const App: React.FC = () => {
         <ProjectsPanel
           onLoadProject={handleLoadProject}
           onNewProject={handleNewProject}
-        />
-      </div>
-
-      {/* CONVERTER TAB */}
-      <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'converter' ? 'flex' : 'none' }}>
-        <ImageConverter
-          beadTypes={activeBeads}
-          targetColumns={project.columns}
-          onApply={handleApplyConvertedImage}
         />
       </div>
 
