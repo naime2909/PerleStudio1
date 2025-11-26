@@ -347,7 +347,7 @@ const App: React.FC = () => {
       });
   };
 
-  // New handlers for tabs
+  // Handlers for tabs
   const handleLoadProject = (loadedProject: ProjectState, name: string) => {
     setHistory([loadedProject]);
     setHistoryIndex(0);
