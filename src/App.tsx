@@ -8,6 +8,8 @@ import VisualPreview from './components/VisualPreview';
 import AIGenerator from './components/AIGenerator';
 import ProjectsPanel from './components/ProjectsPanel';
 import SettingsPanel from './components/SettingsPanel';
+import TemplateGallery from './components/TemplateGallery';
+import ImageConverter from './components/ImageConverter';
 import { useLocalStorage, AUTO_SAVE_INTERVAL } from './useLocalStorage';
 import { Info, Menu, X, Trash2, Eraser, Hand, Sparkles, Undo2, Redo2, Square, Circle, Pencil, Pentagon, CheckSquare, Palette, Grid, ClipboardList, Layout, Image as ImageIcon, Sliders, Crosshair, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Move, Layers, ZoomIn, ZoomOut, Scissors, Copy, ClipboardCopy, MousePointer2, Eye, EyeOff, Minus, Plus, Pipette, PaintBucket } from 'lucide-react';
 
@@ -55,7 +57,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Tab system
-  const [activeTab, setActiveTab] = useState<'editor' | 'projects' | 'settings'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'templates' | 'convert' | 'projects' | 'settings'>('editor');
   
   // Project name & auto-save
   const [projectName, setProjectName] = useState('Sans titre');
@@ -586,6 +588,26 @@ const App: React.FC = () => {
           📝 Éditeur
         </button>
         <button
+          onClick={() => setActiveTab('templates')}
+          className={`px-4 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
+            activeTab === 'templates'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          ✨ Templates
+        </button>
+        <button
+          onClick={() => setActiveTab('convert')}
+          className={`px-4 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
+            activeTab === 'convert'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          🖼️ Convertir Image
+        </button>
+        <button
           onClick={() => setActiveTab('projects')}
           className={`px-4 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
             activeTab === 'projects'
@@ -1013,6 +1035,42 @@ const App: React.FC = () => {
             <ClipboardList size={20} />
             <span className="text-[10px] font-bold">Infos & Matériel</span>
          </button>
+      </div>
+
+      {/* TEMPLATES TAB */}
+      <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'templates' ? 'flex' : 'none' }}>
+        <TemplateGallery
+          beadTypes={activeBeads}
+          onApplyTemplate={(grid, rows, columns, mode) => {
+            const newProject: ProjectState = {
+              ...project,
+              grid,
+              rows,
+              columns,
+              mode
+            };
+            pushToHistory(newProject);
+            setActiveTab('editor');
+          }}
+        />
+      </div>
+
+      {/* CONVERT IMAGE TAB */}
+      <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'convert' ? 'flex' : 'none' }}>
+        <ImageConverter
+          beadTypes={activeBeads}
+          targetColumns={project.columns}
+          onApply={(grid, rows, columns) => {
+            const newProject: ProjectState = {
+              ...project,
+              grid,
+              rows,
+              columns
+            };
+            pushToHistory(newProject);
+            setActiveTab('editor');
+          }}
+        />
       </div>
 
       {/* PROJECTS TAB */}

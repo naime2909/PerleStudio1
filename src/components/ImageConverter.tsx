@@ -22,12 +22,52 @@ const ImageConverter: React.FC<ImageConverterProps> = ({ beadTypes, targetColumn
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Color distance calculation (Euclidean in RGB space)
+  // Convert RGB to LAB color space (more perceptually accurate)
+  const rgbToLab = (r: number, g: number, b: number): [number, number, number] => {
+    // Convert RGB to XYZ
+    let rNorm = r / 255;
+    let gNorm = g / 255;
+    let bNorm = b / 255;
+
+    rNorm = rNorm > 0.04045 ? Math.pow((rNorm + 0.055) / 1.055, 2.4) : rNorm / 12.92;
+    gNorm = gNorm > 0.04045 ? Math.pow((gNorm + 0.055) / 1.055, 2.4) : gNorm / 12.92;
+    bNorm = bNorm > 0.04045 ? Math.pow((bNorm + 0.055) / 1.055, 2.4) : bNorm / 12.92;
+
+    rNorm *= 100;
+    gNorm *= 100;
+    bNorm *= 100;
+
+    // Observer = 2°, Illuminant = D65
+    let x = rNorm * 0.4124 + gNorm * 0.3576 + bNorm * 0.1805;
+    let y = rNorm * 0.2126 + gNorm * 0.7152 + bNorm * 0.0722;
+    let z = rNorm * 0.0193 + gNorm * 0.1192 + bNorm * 0.9505;
+
+    // Convert XYZ to LAB
+    x /= 95.047;
+    y /= 100.000;
+    z /= 108.883;
+
+    x = x > 0.008856 ? Math.pow(x, 1/3) : (7.787 * x) + (16/116);
+    y = y > 0.008856 ? Math.pow(y, 1/3) : (7.787 * y) + (16/116);
+    z = z > 0.008856 ? Math.pow(z, 1/3) : (7.787 * z) + (16/116);
+
+    const L = (116 * y) - 16;
+    const A = 500 * (x - y);
+    const B = 200 * (y - z);
+
+    return [L, A, B];
+  };
+
+  // Color distance calculation using Delta E (CIE76) in LAB space
+  // More perceptually accurate than RGB Euclidean distance
   const colorDistance = (r1: number, g1: number, b1: number, r2: number, g2: number, b2: number): number => {
+    const [L1, A1, B1] = rgbToLab(r1, g1, b1);
+    const [L2, A2, B2] = rgbToLab(r2, g2, b2);
+
     return Math.sqrt(
-      Math.pow(r1 - r2, 2) +
-      Math.pow(g1 - g2, 2) +
-      Math.pow(b1 - b2, 2)
+      Math.pow(L1 - L2, 2) +
+      Math.pow(A1 - A2, 2) +
+      Math.pow(B1 - B2, 2)
     );
   };
 
@@ -205,6 +245,7 @@ const ImageConverter: React.FC<ImageConverterProps> = ({ beadTypes, targetColumn
                 <li>✓ Les logos et icônes fonctionnent très bien</li>
                 <li>✓ Évitez les photos trop détaillées</li>
                 <li>✓ Un fond transparent facilite la conversion</li>
+                <li>✨ <strong>Nouveau :</strong> Correspondance des couleurs améliorée (LAB)</li>
               </ul>
             </div>
           </div>
