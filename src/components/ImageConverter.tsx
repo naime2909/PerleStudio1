@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { BeadType, PatternGrid } from '../types';
-import { Image as ImageIcon, Upload, Sliders, Zap } from 'lucide-react';
+import { BeadType, PatternGrid, ProjectState } from '../types';
+import { Image as ImageIcon, Upload, Sliders, Zap, Eye } from 'lucide-react';
+import VisualPreview from './VisualPreview';
 
 interface ImageConverterProps {
   beadTypes: BeadType[];
@@ -251,9 +252,33 @@ const ImageConverter: React.FC<ImageConverterProps> = ({ beadTypes, targetColumn
           </div>
         ) : (
           /* Preview & Settings */
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Settings */}
-            <div className="space-y-6">
+          <div className="space-y-6">
+            {/* Large Visual Preview */}
+            <div className="bg-white rounded-lg border border-slate-200 p-4">
+              <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                <Eye size={18} className="text-indigo-600" />
+                Aperçu Grand Format
+              </h3>
+              <div className="bg-slate-100 rounded-lg p-4">
+                {previewRows > 0 && (
+                  <VisualPreview
+                    project={{
+                      mode: 'loom',
+                      columns: previewColumns,
+                      rows: previewRows,
+                      grid: previewGrid
+                    } as ProjectState}
+                    beadTypes={beadTypes}
+                    orientation="vertical"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Settings & Small Preview Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Settings */}
+              <div className="space-y-6">
               <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
                 <h3 className="font-semibold text-slate-700 mb-4 flex items-center gap-2">
                   <Sliders size={18} />
@@ -357,52 +382,53 @@ const ImageConverter: React.FC<ImageConverterProps> = ({ beadTypes, targetColumn
               </div>
             </div>
 
-            {/* Preview */}
-            <div className="space-y-4">
-              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <h3 className="font-semibold text-slate-700 mb-3">Aperçu</h3>
-                <div className="bg-white p-2 rounded border border-slate-300 overflow-auto max-h-96">
-                  {previewRows > 0 && (
-                    <div style={{ width: 'fit-content' }}>
-                      {Array.from({ length: previewRows }).map((_, r) => (
-                        <div key={r} className="flex">
-                          {Array.from({ length: previewColumns }).map((_, c) => {
-                            const beadId = previewGrid[`${r}-${c}`];
-                            const bead = beadTypes.find(b => b.id === beadId);
-                            return (
-                              <div
-                                key={c}
-                                className="border border-slate-200"
-                                style={{
-                                  width: '8px',
-                                  height: '8px',
-                                  backgroundColor: bead?.hex || '#ffffff'
-                                }}
-                              />
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+              {/* Preview */}
+              <div className="space-y-4">
+                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                  <h3 className="font-semibold text-slate-700 mb-3">Aperçu Pixelisé</h3>
+                  <div className="bg-white p-2 rounded border border-slate-300 overflow-auto max-h-96">
+                    {previewRows > 0 && (
+                      <div style={{ width: 'fit-content' }}>
+                        {Array.from({ length: previewRows }).map((_, r) => (
+                          <div key={r} className="flex">
+                            {Array.from({ length: previewColumns }).map((_, c) => {
+                              const beadId = previewGrid[`${r}-${c}`];
+                              const bead = beadTypes.find(b => b.id === beadId);
+                              return (
+                                <div
+                                  key={c}
+                                  className="border border-slate-200"
+                                  style={{
+                                    width: '8px',
+                                    height: '8px',
+                                    backgroundColor: bead?.hex || '#ffffff'
+                                  }}
+                                />
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Actions */}
-              <div className="flex gap-3">
-                <button
-                  onClick={handleReset}
-                  className="flex-1 px-4 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-lg transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleApply}
-                  disabled={Object.keys(previewGrid).length === 0}
-                  className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
-                >
-                  Appliquer au Motif
-                </button>
+                {/* Actions */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleReset}
+                    className="flex-1 px-4 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-lg transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleApply}
+                    disabled={Object.keys(previewGrid).length === 0}
+                    className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
+                  >
+                    Appliquer au Motif
+                  </button>
+                </div>
               </div>
             </div>
           </div>

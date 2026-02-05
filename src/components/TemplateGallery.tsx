@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Template, TEMPLATES, getCategories } from '../templates';
 import { BeadType, PatternGrid } from '../types';
-import { Sparkles, Search, Filter, Heart, Leaf, Shapes, Star, Type } from 'lucide-react';
+import { Sparkles, Search, Filter, Heart, Leaf, Shapes, Star, Type, Copy, X } from 'lucide-react';
 
 interface TemplateGalleryProps {
   beadTypes: BeadType[];
@@ -13,6 +13,12 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTem
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
 
+  // Repeat modal state
+  const [showRepeatModal, setShowRepeatModal] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [repeatX, setRepeatX] = useState(3);
+  const [repeatY, setRepeatY] = useState(1);
+
   // Filter templates
   const filteredTemplates = TEMPLATES.filter(template => {
     const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory;
@@ -22,8 +28,8 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTem
     return matchesCategory && matchesSearch && matchesDifficulty;
   });
 
-  // Map template bead colors to actual bead IDs
-  const applyTemplate = (template: Template) => {
+  // Map template bead colors to actual bead IDs and optionally repeat
+  const applyTemplate = (template: Template, repX: number = 1, repY: number = 1) => {
     const newGrid: PatternGrid = {};
 
     // Create a mapping between template colors and available beads
@@ -38,15 +44,40 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTem
       }
     });
 
-    // Apply the mapping to create the final grid
-    Object.entries(template.grid).forEach(([key, templateBeadId]) => {
-      const hex = template.beadColors[key];
-      if (hex && colorToBeadMap[hex]) {
-        newGrid[key] = colorToBeadMap[hex];
-      }
-    });
+    // Repeat the pattern repX times horizontally and repY times vertically
+    for (let ry = 0; ry < repY; ry++) {
+      for (let rx = 0; rx < repX; rx++) {
+        Object.entries(template.grid).forEach(([key, templateBeadId]) => {
+          const [r, c] = key.split('-').map(Number);
+          const newR = r + (ry * template.rows);
+          const newC = c + (rx * template.columns);
+          const newKey = `${newR}-${newC}`;
 
-    onApplyTemplate(newGrid, template.rows, template.columns, template.mode);
+          const hex = template.beadColors[key];
+          if (hex && colorToBeadMap[hex]) {
+            newGrid[newKey] = colorToBeadMap[hex];
+          }
+        });
+      }
+    }
+
+    const totalRows = template.rows * repY;
+    const totalColumns = template.columns * repX;
+
+    onApplyTemplate(newGrid, totalRows, totalColumns, template.mode);
+  };
+
+  const handleTemplateClick = (template: Template) => {
+    setSelectedTemplate(template);
+    setShowRepeatModal(true);
+  };
+
+  const handleApplyWithRepeat = () => {
+    if (selectedTemplate) {
+      applyTemplate(selectedTemplate, repeatX, repeatY);
+      setShowRepeatModal(false);
+      setSelectedTemplate(null);
+    }
   };
 
   // Find closest bead color (Euclidean distance in RGB space)
@@ -270,9 +301,10 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTem
 
                   {/* Apply Button */}
                   <button
-                    onClick={() => applyTemplate(template)}
-                    className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors group-hover:scale-105 transition-transform"
+                    onClick={() => handleTemplateClick(template)}
+                    className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors group-hover:scale-105 transition-transform flex items-center justify-center gap-2"
                   >
+                    <Copy size={16} />
                     Utiliser ce motif
                   </button>
                 </div>
@@ -290,6 +322,125 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTem
           {selectedDifficulty !== 'all' && ` • Difficulté: ${selectedDifficulty}`}
         </p>
       </div>
+
+      {/* Repeat Modal */}
+      {showRepeatModal && selectedTemplate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 border-b border-slate-200">
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <Copy size={20} className="text-indigo-600" />
+                Répéter le motif
+              </h3>
+              <button
+                onClick={() => {
+                  setShowRepeatModal(false);
+                  setSelectedTemplate(null);
+                }}
+                className="p-1 hover:bg-slate-100 rounded-full"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-200">
+                <p className="text-sm text-indigo-900 font-semibold mb-1">{selectedTemplate.name}</p>
+                <p className="text-xs text-indigo-700">
+                  Motif original: {selectedTemplate.columns}×{selectedTemplate.rows}
+                </p>
+              </div>
+
+              {/* Horizontal Repeat */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Répétitions horizontales (largeur du bracelet)
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={repeatX}
+                    onChange={(e) => setRepeatX(parseInt(e.target.value))}
+                    className="flex-1"
+                  />
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={repeatX}
+                    onChange={(e) => setRepeatX(parseInt(e.target.value) || 1)}
+                    className="w-16 px-2 py-1 text-center border border-slate-300 rounded"
+                  />
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Largeur finale: {selectedTemplate.columns * repeatX} colonnes
+                </p>
+              </div>
+
+              {/* Vertical Repeat */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Répétitions verticales (longueur du bracelet)
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="1"
+                    max="5"
+                    value={repeatY}
+                    onChange={(e) => setRepeatY(parseInt(e.target.value))}
+                    className="flex-1"
+                  />
+                  <input
+                    type="number"
+                    min="1"
+                    max="5"
+                    value={repeatY}
+                    onChange={(e) => setRepeatY(parseInt(e.target.value) || 1)}
+                    className="w-16 px-2 py-1 text-center border border-slate-300 rounded"
+                  />
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Hauteur finale: {selectedTemplate.rows * repeatY} rangs
+                </p>
+              </div>
+
+              {/* Preview Info */}
+              <div className="bg-slate-100 p-3 rounded-lg">
+                <p className="text-sm font-semibold text-slate-800 mb-1">Résultat final</p>
+                <p className="text-xs text-slate-600">
+                  • Dimensions: {selectedTemplate.columns * repeatX} × {selectedTemplate.rows * repeatY}<br />
+                  • Mode: {selectedTemplate.mode === 'loom' ? 'Loom' : 'Peyote'}<br />
+                  • Perles totales: ~{Object.keys(selectedTemplate.grid).length * repeatX * repeatY}
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 p-4 border-t border-slate-200">
+              <button
+                onClick={() => {
+                  setShowRepeatModal(false);
+                  setSelectedTemplate(null);
+                }}
+                className="flex-1 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-lg transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleApplyWithRepeat}
+                className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors"
+              >
+                Appliquer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

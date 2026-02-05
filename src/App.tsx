@@ -819,12 +819,12 @@ const App: React.FC = () => {
                 {showPreview && (
                     <div className="h-28 sm:h-48 shrink-0 p-2 sm:p-3 bg-slate-100/50 border-b border-slate-200 z-10 relative group" data-visual-preview>
                         <VisualPreview project={project} beadTypes={activeBeads} orientation="horizontal" />
-                        <button 
+                        <button
                             onClick={() => setShowPreview(false)}
-                            className="absolute top-4 right-4 p-1.5 bg-white/80 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity lg:hidden"
+                            className="absolute top-4 right-4 p-1.5 bg-white/80 hover:bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
                             title="Masquer l'aperçu"
                         >
-                            <X size={14} className="text-slate-500"/>
+                            <EyeOff size={14} className="text-slate-500"/>
                         </button>
                     </div>
                 )}
@@ -896,10 +896,14 @@ const App: React.FC = () => {
                              {toolMode === 'paste' && <span className="text-xs text-indigo-600 font-bold animate-pulse whitespace-nowrap">Mode Coller activé</span>}
                          </div>
 
-                         {/* Mobile Preview Toggle */}
+                         {/* Preview Toggle - Works on all screen sizes */}
                          {!showPreview && (
-                             <button onClick={() => setShowPreview(true)} className="flex items-center gap-1 text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded lg:hidden shrink-0">
-                                 <Eye size={14}/> Voir Aperçu
+                             <button
+                                onClick={() => setShowPreview(true)}
+                                className="flex items-center gap-1 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+                                title="Afficher l'aperçu"
+                             >
+                                 <Eye size={16}/> Voir Aperçu
                              </button>
                          )}
                     </div>
