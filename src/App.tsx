@@ -55,10 +55,14 @@ const App: React.FC = () => {
   const [showPreview, setShowPreview] = useState(true);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [showColorReplaceModal, setShowColorReplaceModal] = useState(false);
+  const [showFillEmptyModal, setShowFillEmptyModal] = useState(false);
 
   // Color Replace State
   const [sourceColorId, setSourceColorId] = useState<string | null>(null);
   const [targetColorId, setTargetColorId] = useState<string | null>(null);
+
+  // Fill Empty State
+  const [fillColorId, setFillColorId] = useState<string | null>(null);
   
   // Sidebar State
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -291,6 +295,26 @@ const App: React.FC = () => {
       setShowColorReplaceModal(false);
       setSourceColorId(null);
       setTargetColorId(null);
+  };
+
+  const handleFillEmpty = () => {
+      if (!fillColorId) return;
+
+      const newGrid: PatternGrid = { ...project.grid };
+
+      // Fill all empty cells
+      for (let r = 0; r < project.rows; r++) {
+          for (let c = 0; c < project.columns; c++) {
+              const key = `${r}-${c}`;
+              if (!newGrid[key]) {
+                  newGrid[key] = fillColorId;
+              }
+          }
+      }
+
+      pushToHistory({ ...project, grid: newGrid });
+      setShowFillEmptyModal(false);
+      setFillColorId(null);
   };
 
   const handleAddPalette = (newBeads: BeadType[]) => {
@@ -753,6 +777,12 @@ const App: React.FC = () => {
                                 <Palette size={14}/> Remplacer
                             </button>
                         </div>
+                        <button
+                            onClick={() => setShowFillEmptyModal(true)}
+                            className="w-full flex items-center justify-center gap-1.5 p-2 bg-green-100 hover:bg-green-200 text-green-700 text-xs font-semibold rounded transition-colors border border-green-300 mt-2"
+                        >
+                            <PaintBucket size={14}/> Remplir Vides
+                        </button>
                     </div>
 
                     {/* Dimensions REMOVED - Moved to StatsPanel */}
@@ -1460,6 +1490,93 @@ const App: React.FC = () => {
                 className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
               >
                 Remplacer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FILL EMPTY MODAL */}
+      {showFillEmptyModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="flex justify-between items-center p-4 border-b border-slate-200">
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <PaintBucket size={20} className="text-green-600"/> Remplir les Vides
+              </h3>
+              <button onClick={() => {
+                setShowFillEmptyModal(false);
+                setFillColorId(null);
+              }} className="p-1 hover:bg-slate-100 rounded-full">
+                <X size={20}/>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Color Selection */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">
+                  Choisissez la couleur pour remplir toutes les cellules vides :
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {activeBeads.map(bead => (
+                    <button
+                      key={bead.id}
+                      onClick={() => setFillColorId(bead.id)}
+                      className={`aspect-square rounded-lg transition-all ${
+                        fillColorId === bead.id
+                          ? 'ring-4 ring-green-600 ring-offset-2 scale-110'
+                          : 'ring-1 ring-slate-300 hover:ring-2 hover:ring-green-400'
+                      }`}
+                      style={{ backgroundColor: bead.hex }}
+                      title={bead.name}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Preview Info */}
+              {fillColorId && (
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <p className="text-sm font-semibold text-green-900 mb-2">Aperçu :</p>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div
+                      className="w-12 h-12 rounded-lg ring-2 ring-green-600"
+                      style={{ backgroundColor: activeBeads.find(b => b.id === fillColorId)?.hex }}
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-green-900">
+                        {activeBeads.find(b => b.id === fillColorId)?.name}
+                      </p>
+                      <p className="text-xs text-green-700">
+                        Couleur de remplissage
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-green-700">
+                    Toutes les cellules vides de votre grille ({project.rows}×{project.columns})
+                    seront remplies avec cette couleur.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 p-4 border-t border-slate-200">
+              <button
+                onClick={() => {
+                  setShowFillEmptyModal(false);
+                  setFillColorId(null);
+                }}
+                className="flex-1 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-lg transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleFillEmpty}
+                disabled={!fillColorId}
+                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
+              >
+                Remplir
               </button>
             </div>
           </div>
