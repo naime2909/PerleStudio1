@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { BeadType, BraceletSettings, ProjectState, PatternMode, ToolMode, OverlayImage, PatternGrid, SelectionArea, ClipboardData, MaterialType } from './types';
+import { BeadType, BraceletSettings, ProjectState, PatternMode, PeyoteOffset, ToolMode, OverlayImage, PatternGrid, SelectionArea, ClipboardData, MaterialType } from './types';
 import { DEFAULT_BEADS, WRIST_SIZES, BEAD_SIZES, EDITOR_CONSTANTS, PRESET_COLORS } from './constants';
 import PatternEditor from './components/PatternEditor';
 import StatsPanel from './components/StatsPanel';
@@ -19,6 +19,7 @@ const App: React.FC = () => {
   // -- History & Project State --
   const [history, setHistory] = useState<ProjectState[]>([{
     mode: 'loom',
+    peyoteOffset: 'columns',
     columns: 14,
     rows: 50,
     grid: {}
@@ -52,6 +53,12 @@ const App: React.FC = () => {
   const [showAIModal, setShowAIModal] = useState(false);
   const [showPaletteModal, setShowPaletteModal] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [showColorReplaceModal, setShowColorReplaceModal] = useState(false);
+
+  // Color Replace State
+  const [sourceColorId, setSourceColorId] = useState<string | null>(null);
+  const [targetColorId, setTargetColorId] = useState<string | null>(null);
   
   // Sidebar State
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -260,8 +267,31 @@ const App: React.FC = () => {
   };
 
   const handleModeChange = (m: PatternMode) => {
-      pushToHistory({ ...project, mode: m });
+      pushToHistory({ ...project, mode: m, peyoteOffset: project.peyoteOffset || 'columns' });
   }
+
+  const handlePeyoteOffsetChange = (offset: 'columns' | 'rows') => {
+      pushToHistory({ ...project, peyoteOffset: offset });
+  };
+
+  const handleJumpToHistory = (index: number) => {
+      setHistoryIndex(index);
+      setShowHistoryPanel(false);
+  };
+
+  const handleColorReplace = () => {
+      if (!sourceColorId || !targetColorId) return;
+
+      const newGrid: PatternGrid = {};
+      Object.entries(project.grid).forEach(([key, beadId]) => {
+          newGrid[key] = beadId === sourceColorId ? targetColorId : beadId;
+      });
+
+      pushToHistory({ ...project, grid: newGrid });
+      setShowColorReplaceModal(false);
+      setSourceColorId(null);
+      setTargetColorId(null);
+  };
 
   const handleAddPalette = (newBeads: BeadType[]) => {
     setActiveBeads(prev => [...prev, ...newBeads]);
@@ -499,6 +529,7 @@ const App: React.FC = () => {
       storage.saveCurrentProject(project, projectName);
       setHistory([{
         mode: 'loom',
+        peyoteOffset: 'columns',
         columns: 14,
         rows: 50,
         grid: {}
@@ -658,18 +689,71 @@ const App: React.FC = () => {
                     <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Configuration</p>
                     
                     {/* Mode Selector */}
-                    <div className="flex bg-white border border-slate-200 rounded-lg p-1 mb-3">
-                        <button onClick={() => handleModeChange('loom')} className={`flex-1 py-1.5 text-xs font-bold rounded transition-colors ${project.mode === 'loom' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}>Loom</button>
-                        <button onClick={() => handleModeChange('peyote')} className={`flex-1 py-1.5 text-xs font-bold rounded transition-colors ${project.mode === 'peyote' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}>Peyote</button>
+                    <div className="space-y-2 mb-3">
+                        <div className="flex bg-white border border-slate-200 rounded-lg p-1">
+                            <button onClick={() => handleModeChange('loom')} className={`flex-1 py-1.5 text-xs font-bold rounded transition-colors ${project.mode === 'loom' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}>Loom</button>
+                            <button onClick={() => handleModeChange('peyote')} className={`flex-1 py-1.5 text-xs font-bold rounded transition-colors ${project.mode === 'peyote' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}>Peyote</button>
+                        </div>
+
+                        {/* Peyote Options */}
+                        {project.mode === 'peyote' && (
+                            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-2">
+                                <label className="block text-[10px] font-bold text-indigo-900 mb-1">Direction du décalage:</label>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handlePeyoteOffsetChange('columns')}
+                                        className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded transition-colors ${
+                                            (project.peyoteOffset || 'columns') === 'columns'
+                                                ? 'bg-indigo-600 text-white shadow-sm'
+                                                : 'bg-white text-indigo-700 hover:bg-indigo-100'
+                                        }`}
+                                    >
+                                        ↕️ Colonnes
+                                    </button>
+                                    <button
+                                        onClick={() => handlePeyoteOffsetChange('rows')}
+                                        className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded transition-colors ${
+                                            project.peyoteOffset === 'rows'
+                                                ? 'bg-indigo-600 text-white shadow-sm'
+                                                : 'bg-white text-indigo-700 hover:bg-indigo-100'
+                                        }`}
+                                    >
+                                        ↔️ Lignes
+                                    </button>
+                                </div>
+                                <p className="text-[9px] text-indigo-700 mt-1">
+                                    {(project.peyoteOffset || 'columns') === 'columns'
+                                        ? '↕️ Décale les colonnes impaires vers le bas'
+                                        : '↔️ Décale les lignes impaires vers la droite'}
+                                </p>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Save Project Button */}
-                    <button 
-                        onClick={handleSaveProject}
-                        className="w-full flex items-center justify-center gap-2 p-2 bg-indigo-600 text-white text-xs font-bold rounded hover:bg-indigo-700 transition-colors shadow-sm mb-2"
-                    >
-                        <Copy size={14}/> 💾 Sauvegarder Projet
-                    </button>
+                    {/* Action Buttons */}
+                    <div className="space-y-2">
+                        <button
+                            onClick={handleSaveProject}
+                            className="w-full flex items-center justify-center gap-2 p-2 bg-indigo-600 text-white text-xs font-bold rounded hover:bg-indigo-700 transition-colors shadow-sm"
+                        >
+                            <Copy size={14}/> 💾 Sauvegarder
+                        </button>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                onClick={() => setShowHistoryPanel(true)}
+                                className="flex items-center justify-center gap-1.5 p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded transition-colors border border-slate-300"
+                            >
+                                <Undo2 size={14}/> Historique
+                            </button>
+                            <button
+                                onClick={() => setShowColorReplaceModal(true)}
+                                className="flex items-center justify-center gap-1.5 p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded transition-colors border border-slate-300"
+                            >
+                                <Palette size={14}/> Remplacer
+                            </button>
+                        </div>
+                    </div>
 
                     {/* Dimensions REMOVED - Moved to StatsPanel */}
                     <p className="text-[9px] text-slate-400 mt-2 text-center italic">Pour changer la taille, voir "Infos & Matériel".</p>
@@ -947,8 +1031,9 @@ const App: React.FC = () => {
                     </div>
 
                     <div className="flex-1 relative min-h-0">
-                        <PatternEditor 
+                        <PatternEditor
                             mode={project.mode}
+                            peyoteOffset={project.peyoteOffset}
                             columns={project.columns}
                             rows={project.rows}
                             grid={project.grid}
@@ -1208,6 +1293,176 @@ const App: React.FC = () => {
                     <AIGenerator onAddBeadsToPalette={handleAddPalette} />
                 </div>
             </div>
+        </div>
+      )}
+
+      {/* HISTORY PANEL MODAL */}
+      {showHistoryPanel && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b border-slate-200">
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <Undo2 size={20} className="text-indigo-600"/> Historique des Modifications
+              </h3>
+              <button onClick={() => setShowHistoryPanel(false)} className="p-1 hover:bg-slate-100 rounded-full">
+                <X size={20}/>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="space-y-2">
+                {history.slice().reverse().map((state, reverseIndex) => {
+                  const index = history.length - 1 - reverseIndex;
+                  const isCurrent = index === historyIndex;
+                  const timestamp = index === 0 ? 'Initial' : `Étape ${index}`;
+
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => handleJumpToHistory(index)}
+                      className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
+                        isCurrent
+                          ? 'bg-indigo-50 border-indigo-600 shadow-sm'
+                          : 'bg-white border-slate-200 hover:border-indigo-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-sm font-bold ${isCurrent ? 'text-indigo-900' : 'text-slate-800'}`}>
+                          {timestamp}
+                        </span>
+                        {isCurrent && (
+                          <span className="text-xs bg-indigo-600 text-white px-2 py-0.5 rounded-full font-semibold">
+                            ← Actuel
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-slate-600 space-y-0.5">
+                        <div>📐 {state.columns}×{state.rows} • {state.mode === 'loom' ? 'Loom' : 'Peyote'}</div>
+                        <div>🎨 {Object.keys(state.grid).length} perles placées</div>
+                        {state.mode === 'peyote' && (
+                          <div>↕️ Décalage: {state.peyoteOffset === 'rows' ? 'Lignes' : 'Colonnes'}</div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-200 bg-slate-50">
+              <p className="text-xs text-slate-600 text-center">
+                📍 Vous êtes à l'étape {historyIndex + 1} sur {history.length} • Cliquez pour revenir en arrière
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* COLOR REPLACE MODAL */}
+      {showColorReplaceModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+            <div className="flex justify-between items-center p-4 border-b border-slate-200">
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                <Palette size={20} className="text-indigo-600"/> Remplacer une Couleur
+              </h3>
+              <button onClick={() => {
+                setShowColorReplaceModal(false);
+                setSourceColorId(null);
+                setTargetColorId(null);
+              }} className="p-1 hover:bg-slate-100 rounded-full">
+                <X size={20}/>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Source Color */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">
+                  1️⃣ Couleur à remplacer :
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {activeBeads.map(bead => (
+                    <button
+                      key={bead.id}
+                      onClick={() => setSourceColorId(bead.id)}
+                      className={`aspect-square rounded-lg transition-all ${
+                        sourceColorId === bead.id
+                          ? 'ring-4 ring-indigo-600 ring-offset-2 scale-110'
+                          : 'ring-1 ring-slate-300 hover:ring-2 hover:ring-indigo-400'
+                      }`}
+                      style={{ backgroundColor: bead.hex }}
+                      title={bead.name}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Target Color */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">
+                  2️⃣ Nouvelle couleur :
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {activeBeads.map(bead => (
+                    <button
+                      key={bead.id}
+                      onClick={() => setTargetColorId(bead.id)}
+                      className={`aspect-square rounded-lg transition-all ${
+                        targetColorId === bead.id
+                          ? 'ring-4 ring-green-600 ring-offset-2 scale-110'
+                          : 'ring-1 ring-slate-300 hover:ring-2 hover:ring-green-400'
+                      }`}
+                      style={{ backgroundColor: bead.hex }}
+                      title={bead.name}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Preview */}
+              {sourceColorId && targetColorId && (
+                <div className="bg-slate-100 p-4 rounded-lg">
+                  <p className="text-sm font-semibold text-slate-800 mb-2">Aperçu :</p>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-12 h-12 rounded-lg ring-2 ring-slate-300"
+                      style={{ backgroundColor: activeBeads.find(b => b.id === sourceColorId)?.hex }}
+                    />
+                    <div className="text-2xl">→</div>
+                    <div
+                      className="w-12 h-12 rounded-lg ring-2 ring-green-600"
+                      style={{ backgroundColor: activeBeads.find(b => b.id === targetColorId)?.hex }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-600 mt-2">
+                    Toutes les perles de couleur "{activeBeads.find(b => b.id === sourceColorId)?.name}"
+                    seront remplacées par "{activeBeads.find(b => b.id === targetColorId)?.name}"
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 p-4 border-t border-slate-200">
+              <button
+                onClick={() => {
+                  setShowColorReplaceModal(false);
+                  setSourceColorId(null);
+                  setTargetColorId(null);
+                }}
+                className="flex-1 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-lg transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleColorReplace}
+                disabled={!sourceColorId || !targetColorId || sourceColorId === targetColorId}
+                className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors"
+              >
+                Remplacer
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

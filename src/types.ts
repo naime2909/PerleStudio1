@@ -17,11 +17,14 @@ export interface BeadType {
 
 export type PatternMode = 'loom' | 'peyote';
 
+export type PeyoteOffset = 'columns' | 'rows'; // Direction du décalage en Peyote
+
 // Clé de la grille : "row-col", Valeur : beadId
 export type PatternGrid = Record<string, string>;
 
 export interface ProjectState {
   mode: PatternMode;
+  peyoteOffset?: PeyoteOffset; // 'columns' = vertical (défaut), 'rows' = horizontal
   columns: number; // Largeur du bracelet en nombre de perles
   rows: number;    // Longueur du bracelet en nombre de perles
   grid: PatternGrid;

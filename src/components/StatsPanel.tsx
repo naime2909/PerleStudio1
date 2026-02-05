@@ -108,12 +108,17 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
           const bead = beadTypes.find(b => b.id === beadId);
 
           // Calculate position with Peyote offset
-          const x = 20 + c * cellWidth;
+          let x = 20 + c * cellWidth;
           let y = gridStartY + r * cellHeight;
 
-          // Apply Peyote offset: odd columns are shifted down
-          if (project.mode === 'peyote' && c % 2 !== 0) {
-            y += cellHeight / 2;
+          // Apply Peyote offset based on direction
+          if (project.mode === 'peyote') {
+            const peyoteOffsetDir = project.peyoteOffset || 'columns';
+            if (peyoteOffsetDir === 'columns' && c % 2 !== 0) {
+              y += cellHeight / 2; // Vertical offset for odd columns
+            } else if (peyoteOffsetDir === 'rows' && r % 2 !== 0) {
+              x += cellWidth / 2; // Horizontal offset for odd rows
+            }
           }
 
           if (bead) {
@@ -125,8 +130,10 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
       }
 
       // Calculate grid end position with Peyote offset
-      const peyoteOffset = project.mode === 'peyote' ? cellHeight / 2 : 0;
-      const gridEndY = gridStartY + maxRows * cellHeight + peyoteOffset + 5;
+      const peyoteOffsetValue = project.mode === 'peyote'
+        ? (project.peyoteOffset === 'rows' ? cellWidth / 2 : cellHeight / 2)
+        : 0;
+      const gridEndY = gridStartY + maxRows * cellHeight + (project.peyoteOffset === 'columns' ? peyoteOffsetValue : 0) + 5;
       
       // Right side info
       const rightX = 110;
