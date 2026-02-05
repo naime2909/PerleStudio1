@@ -605,7 +605,7 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                             <div
                             key={`${r}-${c}`}
                             data-cell-pos={`${r}-${c}`}
-                            className={`absolute border border-slate-50/50 box-border ${toolMode !== 'move' && toolMode !== 'select' && toolMode !== 'paste' ? 'hover:border-indigo-300' : ''}`}
+                            className={`absolute border border-slate-50/50 box-border rounded-sm ${toolMode !== 'move' && toolMode !== 'select' && toolMode !== 'paste' ? 'hover:border-indigo-300' : ''}`}
                             style={{
                                 left: left, top: top, width: CELL_WIDTH, height: CELL_HEIGHT,
                                 zIndex: isGhost || isPolygonVertex ? 30 : 10

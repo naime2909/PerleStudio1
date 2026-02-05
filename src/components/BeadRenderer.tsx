@@ -48,8 +48,8 @@ const BeadRenderer: React.FC<BeadRendererProps> = ({ color, material, width, hei
         <rect 
           x="2" y="2" 
           width="96" height="96" 
-          rx={isDelica ? 10 : 50} 
-          ry={isDelica ? 10 : 50} 
+          rx={isDelica ? 15 : 50} 
+          ry={isDelica ? 15 : 50} 
           fill={color} 
           stroke="rgba(0,0,0,0.1)" 
           strokeWidth="2" 
@@ -59,7 +59,7 @@ const BeadRenderer: React.FC<BeadRendererProps> = ({ color, material, width, hei
            <rect 
              x="2" y="2" 
              width="96" height="96" 
-             rx={isDelica ? 10 : 50} 
+             rx={isDelica ? 15 : 50} 
              fill={`url(#grad-${color.replace('#', '')}-${material})`} 
            />
         )}

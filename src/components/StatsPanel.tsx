@@ -87,44 +87,46 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
       yOffset += 7;
       
       const gridStartY = yOffset;
-      const cellSize = 3;
+      // Dimensions réalistes des perles Miyuki Delica (ratio 1.23:1)
+      const cellWidth = 3;
+      const cellHeight = 2.4;
       const maxCols = Math.min(project.columns, 20);
       const maxRows = Math.min(project.rows, 30);
-      
+
       // Draw grid
       doc.setFontSize(6);
       doc.setFont('helvetica', 'normal');
       for (let c = 0; c < maxCols; c++) {
-        doc.text((c + 1).toString(), 20 + c * cellSize, gridStartY - 1, { align: 'center' });
+        doc.text((c + 1).toString(), 20 + c * cellWidth, gridStartY - 1, { align: 'center' });
       }
-      
+
       for (let r = 0; r < maxRows; r++) {
-        doc.text((r + 1).toString(), 16, gridStartY + r * cellSize + 1.5);
+        doc.text((r + 1).toString(), 16, gridStartY + r * cellHeight + 1.2);
 
         for (let c = 0; c < maxCols; c++) {
           const beadId = project.grid[`${r}-${c}`];
           const bead = beadTypes.find(b => b.id === beadId);
 
           // Calculate position with Peyote offset
-          const x = 20 + c * cellSize;
-          let y = gridStartY + r * cellSize;
+          const x = 20 + c * cellWidth;
+          let y = gridStartY + r * cellHeight;
 
           // Apply Peyote offset: odd columns are shifted down
           if (project.mode === 'peyote' && c % 2 !== 0) {
-            y += cellSize / 2;
+            y += cellHeight / 2;
           }
 
           if (bead) {
             doc.setFillColor(bead.hex);
-            doc.rect(x, y, cellSize, cellSize, 'F');
+            doc.roundedRect(x, y, cellWidth, cellHeight, 0.3, 0.3, 'F');
           }
-          doc.rect(x, y, cellSize, cellSize, 'S');
+          doc.roundedRect(x, y, cellWidth, cellHeight, 0.3, 0.3, 'S');
         }
       }
 
       // Calculate grid end position with Peyote offset
-      const peyoteOffset = project.mode === 'peyote' ? cellSize / 2 : 0;
-      const gridEndY = gridStartY + maxRows * cellSize + peyoteOffset + 5;
+      const peyoteOffset = project.mode === 'peyote' ? cellHeight / 2 : 0;
+      const gridEndY = gridStartY + maxRows * cellHeight + peyoteOffset + 5;
       
       // Right side info
       const rightX = 110;
@@ -149,8 +151,8 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
           
           const grams = (count * 0.005).toFixed(1);
           doc.setFillColor(bead.hex);
-          doc.rect(rightX, rightY - 3, 4, 4, 'F');
-          doc.rect(rightX, rightY - 3, 4, 4, 'S');
+          doc.roundedRect(rightX, rightY - 3, 4, 3.2, 0.3, 0.3, 'F');
+          doc.roundedRect(rightX, rightY - 3, 4, 3.2, 0.3, 0.3, 'S');
           
           doc.text(`${bead.name}: ${count} perles (~${grams}g)`, rightX + 6, rightY);
           rightY += 5;

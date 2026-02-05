@@ -30,9 +30,10 @@ export const WRIST_SIZES = [
 ];
 
 // Constantes pour l'interface de l'éditeur (en pixels)
+// Ratio ajusté pour correspondre aux perles Miyuki Delica réelles (1.6mm x 1.3mm ≈ 1.23:1)
 export const EDITOR_CONSTANTS = {
-  MOBILE: { CELL_WIDTH: 20, CELL_HEIGHT: 17, HEADER_SIZE: 24 },
-  DESKTOP: { CELL_WIDTH: 26, CELL_HEIGHT: 22, HEADER_SIZE: 32 }
+  MOBILE: { CELL_WIDTH: 20, CELL_HEIGHT: 16, HEADER_SIZE: 24 },
+  DESKTOP: { CELL_WIDTH: 26, CELL_HEIGHT: 21, HEADER_SIZE: 32 }
 };
 
 // Catalogue étendu de couleurs pour la sélection manuelle

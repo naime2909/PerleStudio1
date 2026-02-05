@@ -13,11 +13,10 @@ const VisualPreview: React.FC<VisualPreviewProps> = ({ project, beadTypes, orien
   const isHorizontal = orientation === 'horizontal';
   
   // Dimensions virtuelles pour le dessin vectoriel
-  // Bead physique ~ 1.6mm (W) x 1.3mm (H)
-  // Vertical View (Standard): W=10, H=8.5
-  // Horizontal View (Rotated): W=8.5, H=10 (Le rectangle de la perle pivote)
+  // Perles Miyuki Delica physiques: 1.6mm (W) x 1.3mm (H) = ratio 1.23:1
+  // Ajusté pour correspondre aux proportions réelles des perles
   const BEAD_W_BASE = 10;
-  const BEAD_H_BASE = 8.5;
+  const BEAD_H_BASE = 8.1;
 
   // Taille du rectangle SVG pour une perle
   const beadRectW = isHorizontal ? BEAD_H_BASE : BEAD_W_BASE;
@@ -101,7 +100,7 @@ const VisualPreview: React.FC<VisualPreviewProps> = ({ project, beadTypes, orien
                                 y={y}
                                 width={beadRectW}
                                 height={beadRectH}
-                                rx={isHorizontal ? 0.5 : 1} 
+                                rx={isHorizontal ? 0.8 : 1.5} 
                                 fill={bead ? bead.hex : '#e2e8f0'} 
                                 fillOpacity={bead ? 1 : 0.3}
                                 stroke={bead ? 'rgba(0,0,0,0.1)' : 'none'}
