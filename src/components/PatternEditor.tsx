@@ -655,7 +655,6 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                              const targetC = currentPos.c - centerC + dc;
 
                              let left = targetC * CELL_WIDTH;
-                             let left = targetC * CELL_WIDTH;
                              let top = targetR * CELL_HEIGHT;
 
                              // Apply Peyote offset for paste ghost
