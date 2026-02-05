@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sync": "git add . && git commit -m \"Auto-sync: Changes saved\" && git push origin main",
+    "sync:msg": "git add . && git commit && git push origin main",
+    "status": "git status"
   },
   "dependencies": {
     "lucide-react": "^0.344.0",

@@ -22,6 +22,54 @@ npm run build
 npm run preview
 ```
 
+## Git Sync Workflow
+
+**IMPORTANT**: This project is connected to GitHub and auto-deploys to Vercel on every push.
+
+### Quick Sync Commands
+
+After making ANY changes, use one of these methods to sync:
+
+**Method 1: npm script (Simplest)**
+```bash
+npm run sync              # Quick sync with auto-generated message
+npm run sync:msg          # Sync with custom commit message (opens editor)
+npm run status            # Check what changed
+```
+
+**Method 2: PowerShell script (Windows)**
+```powershell
+.\sync.ps1                              # Auto-generated commit message
+.\sync.ps1 "Added new feature X"        # Custom message
+```
+
+**Method 3: Bash script (Linux/Mac)**
+```bash
+./sync.sh                               # Auto-generated commit message
+./sync.sh "Added new feature X"         # Custom message
+```
+
+**Method 4: Manual Git**
+```bash
+git add .
+git commit -m "Your message"
+git push origin main
+```
+
+### For Claude Agents
+
+When you make changes to the codebase:
+1. **Complete your task** (edit files, test, etc.)
+2. **Always sync before finishing** using one of the methods above
+3. **Inform the user** that changes were pushed and Vercel will redeploy
+
+Example workflow:
+```bash
+# After making changes...
+npm run sync
+# Vercel automatically redeploys (takes ~2-3 minutes)
+```
+
 ## Core Architecture
 
 ### State Management Pattern
