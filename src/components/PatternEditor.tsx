@@ -166,6 +166,13 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
     }
   }, [isDraggingOverlay]);
 
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('touchend', handleGlobalTouchEnd);
+      return () => window.removeEventListener('touchend', handleGlobalTouchEnd);
+    }
+  }, [isDragging, toolMode, startPos, currentPos, selectedBeadId]);
+
   // --- Algorithmes de Formes ---
 
   const getLinePixels = (r1: number, c1: number, r2: number, c2: number): {r: number, c: number}[] => {
@@ -375,6 +382,92 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
     if (toolMode !== 'polygon' && toolMode !== 'paste') setCurrentPos(null);
   };
 
+  // --- Touch Handlers for Mobile Support ---
+  const handleCellTouchStart = (e: React.TouchEvent, r: number, c: number) => {
+    if (toolMode === 'move' || toolMode === 'polygon') return; // Polygon stays click-based
+    e.preventDefault();
+    e.stopPropagation();
+
+    const touch = e.touches[0];
+    
+    // Paste Logic
+    if (toolMode === 'paste') {
+        if (onPaste) onPaste({r, c});
+        return;
+    }
+
+    // Drag Logic for shapes and selection
+    setIsDragging(true);
+    setStartPos({r, c});
+    setCurrentPos({r, c});
+    
+    // Clear selection if starting a new one
+    if (toolMode === 'select' && onSelectionChange) {
+        onSelectionChange({r1: r, c1: c, r2: r, c2: c});
+    }
+
+    // Direct paint
+    if (toolMode === 'pencil' || toolMode === 'eraser') {
+       const bId = toolMode === 'eraser' ? null : selectedBeadId;
+       onUpdateGrid([{r, c, beadId: bId}]);
+    }
+  };
+
+  const getCellFromTouch = (touch: React.Touch): {r: number, c: number} | null => {
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!element) return null;
+    
+    const cellElement = element.closest('[data-cell-pos]');
+    if (!cellElement) return null;
+    
+    const pos = cellElement.getAttribute('data-cell-pos');
+    if (!pos) return null;
+    
+    const [r, c] = pos.split('-').map(Number);
+    return {r, c};
+  };
+
+  const handleCellTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || toolMode === 'polygon' || toolMode === 'move') return;
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    const cell = getCellFromTouch(touch);
+    
+    if (!cell) return;
+    const {r, c} = cell;
+    
+    setCurrentPos({r, c});
+
+    // Update selection drag
+    if (toolMode === 'select' && startPos && onSelectionChange) {
+        onSelectionChange({r1: startPos.r, c1: startPos.c, r2: r, c2: c});
+    }
+
+    // Paint while dragging
+    if ((toolMode === 'pencil' || toolMode === 'eraser') && isDragging) {
+        const bId = toolMode === 'eraser' ? null : selectedBeadId;
+        onUpdateGrid([{r, c, beadId: bId}]);
+    }
+  };
+
+  const handleGlobalTouchEnd = () => {
+    if (isDragging) {
+        if ((toolMode === 'rectangle' || toolMode === 'circle') && startPos && currentPos) {
+            const pixels = getShapePixels(startPos.r, startPos.c, currentPos.r, currentPos.c, toolMode, isFilled);
+            const updates = pixels.map(p => ({
+                r: p.r,
+                c: p.c,
+                beadId: selectedBeadId
+            }));
+            onUpdateGrid(updates);
+        }
+    }
+    setIsDragging(false);
+    setStartPos(null);
+    if (toolMode !== 'polygon' && toolMode !== 'paste') setCurrentPos(null);
+  };
+
   // --- Rendering Ghosts & Selection ---
   
   let ghostPixels: Set<string> = new Set();
@@ -510,6 +603,7 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                         return (
                             <div
                             key={`${r}-${c}`}
+                            data-cell-pos={`${r}-${c}`}
                             className={`absolute border border-slate-50/50 box-border ${toolMode !== 'move' && toolMode !== 'select' && toolMode !== 'paste' ? 'hover:border-indigo-300' : ''}`}
                             style={{
                                 left: left, top: 0, width: CELL_WIDTH, height: CELL_HEIGHT,
@@ -517,6 +611,8 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                             }}
                             onMouseDown={(e) => handleCellMouseDown(e, r, c)}
                             onMouseEnter={() => handleCellMouseEnter(r, c)}
+                            onTouchStart={(e) => handleCellTouchStart(e, r, c)}
+                            onTouchMove={handleCellTouchMove}
                             >
                             {bead && !isGhost && (
                                 <BeadRenderer color={bead.hex} material={bead.material} width={CELL_WIDTH-2} height={CELL_HEIGHT-2} isDelica={true} className="pointer-events-none" />
