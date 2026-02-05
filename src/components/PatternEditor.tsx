@@ -493,8 +493,8 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
   }
 
   // Grid Dimensions
-  const gridContentWidth = columns * CELL_WIDTH + (mode === 'peyote' ? CELL_WIDTH/2 : 0);
-  const gridContentHeight = rows * CELL_HEIGHT;
+  const gridContentWidth = columns * CELL_WIDTH;
+  const gridContentHeight = rows * CELL_HEIGHT + (mode === 'peyote' ? CELL_HEIGHT/2 : 0);
 
   return (
     <div 
@@ -598,7 +598,8 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                         const ghostBead = beadTypes.find(b => b.id === selectedBeadId);
 
                         let left = c * CELL_WIDTH;
-                        if (mode === 'peyote' && r % 2 !== 0) { left += CELL_WIDTH / 2; }
+                        let top = 0;
+                        if (mode === 'peyote' && c % 2 !== 0) { top += CELL_HEIGHT / 2; }
 
                         return (
                             <div
@@ -606,7 +607,7 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                             data-cell-pos={`${r}-${c}`}
                             className={`absolute border border-slate-50/50 box-border ${toolMode !== 'move' && toolMode !== 'select' && toolMode !== 'paste' ? 'hover:border-indigo-300' : ''}`}
                             style={{
-                                left: left, top: 0, width: CELL_WIDTH, height: CELL_HEIGHT,
+                                left: left, top: top, width: CELL_WIDTH, height: CELL_HEIGHT,
                                 zIndex: isGhost || isPolygonVertex ? 30 : 10
                             }}
                             onMouseDown={(e) => handleCellMouseDown(e, r, c)}
@@ -646,9 +647,9 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
 
                              let left = targetC * CELL_WIDTH;
                              let top = targetR * CELL_HEIGHT;
-                             
-                             if (mode === 'peyote' && Math.abs(targetR) % 2 === 1) {
-                                 left += CELL_WIDTH / 2;
+
+                             if (mode === 'peyote' && Math.abs(targetC) % 2 === 1) {
+                                 top += CELL_HEIGHT / 2;
                              }
 
                              return (
@@ -671,8 +672,8 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                         style={{
                             top: Math.min(selection.r1, selection.r2) * CELL_HEIGHT,
                             left: Math.min(selection.c1, selection.c2) * CELL_WIDTH,
-                            height: (Math.abs(selection.r2 - selection.r1) + 1) * CELL_HEIGHT,
-                            width: (Math.abs(selection.c2 - selection.c1) + 1) * CELL_WIDTH + (mode === 'peyote' ? CELL_WIDTH/2 : 0)
+                            height: (Math.abs(selection.r2 - selection.r1) + 1) * CELL_HEIGHT + (mode === 'peyote' ? CELL_HEIGHT/2 : 0),
+                            width: (Math.abs(selection.c2 - selection.c1) + 1) * CELL_WIDTH
                         }}
                     />
                 )}

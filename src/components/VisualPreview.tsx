@@ -24,15 +24,15 @@ const VisualPreview: React.FC<VisualPreviewProps> = ({ project, beadTypes, orien
   const beadRectH = isHorizontal ? BEAD_W_BASE : BEAD_H_BASE;
   
   // Calcul de la taille totale du dessin (ViewBox)
-  // Si Horizontal: Largeur totale = Nombre de rangs * Hauteur perle
-  //                Hauteur totale = Nombre de colonnes * Largeur perle (+ décalage peyote)
-  const totalWidth = isHorizontal 
-    ? rows * BEAD_H_BASE 
-    : cols * BEAD_W_BASE + (mode === 'peyote' ? BEAD_W_BASE / 2 : 0);
-    
+  // Si Horizontal: Largeur totale = Nombre de rangs * Hauteur perle (+ décalage peyote)
+  //                Hauteur totale = Nombre de colonnes * Largeur perle
+  const totalWidth = isHorizontal
+    ? rows * BEAD_H_BASE + (mode === 'peyote' ? BEAD_H_BASE / 2 : 0)
+    : cols * BEAD_W_BASE;
+
   const totalHeight = isHorizontal
-    ? cols * BEAD_W_BASE + (mode === 'peyote' ? BEAD_W_BASE / 2 : 0)
-    : rows * BEAD_H_BASE;
+    ? cols * BEAD_W_BASE
+    : rows * BEAD_H_BASE + (mode === 'peyote' ? BEAD_H_BASE / 2 : 0);
 
   return (
     <div className={`bg-white rounded-xl shadow-sm border border-slate-200 flex ${isHorizontal ? 'flex-row h-full w-full' : 'flex-col h-[400px]'} items-center p-3 overflow-hidden`}>
@@ -80,17 +80,18 @@ const VisualPreview: React.FC<VisualPreviewProps> = ({ project, beadTypes, orien
                             // Axe X = Rangs (Longueur), Axe Y = Colonnes (Largeur)
                             x = r * BEAD_H_BASE;
                             y = c * BEAD_W_BASE;
-                            // Décalage Peyote sur l'axe Y (Colonnes) en fonction du rang (X)
-                            if (mode === 'peyote' && r % 2 !== 0) {
-                                y += BEAD_W_BASE / 2;
+                            // Décalage Peyote sur l'axe X (Rangs) en fonction de la colonne
+                            if (mode === 'peyote' && c % 2 !== 0) {
+                                x += BEAD_H_BASE / 2;
                             }
                         } else {
                             // Standard Vertical
                             x = c * BEAD_W_BASE;
-                            if (mode === 'peyote' && r % 2 !== 0) {
-                                x += BEAD_W_BASE / 2;
-                            }
                             y = r * BEAD_H_BASE;
+                            // Décalage Peyote sur l'axe Y (Rangs) en fonction de la colonne
+                            if (mode === 'peyote' && c % 2 !== 0) {
+                                y += BEAD_H_BASE / 2;
+                            }
                         }
 
                         return (

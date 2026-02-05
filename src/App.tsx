@@ -333,8 +333,8 @@ const App: React.FC = () => {
       const isMobile = window.innerWidth < 640;
       const CONSTS = isMobile ? EDITOR_CONSTANTS.MOBILE : EDITOR_CONSTANTS.DESKTOP;
       
-      const gridWidth = project.columns * (CONSTS.CELL_WIDTH * zoomLevel) + (project.mode === 'peyote' ? (CONSTS.CELL_WIDTH * zoomLevel)/2 : 0);
-      const gridHeight = project.rows * (CONSTS.CELL_HEIGHT * zoomLevel);
+      const gridWidth = project.columns * (CONSTS.CELL_WIDTH * zoomLevel);
+      const gridHeight = project.rows * (CONSTS.CELL_HEIGHT * zoomLevel) + (project.mode === 'peyote' ? (CONSTS.CELL_HEIGHT * zoomLevel)/2 : 0);
       
       const imgWidth = overlay.width * overlay.scale;
       const imgHeight = overlay.height * overlay.scale;
