@@ -1084,12 +1084,12 @@ const App: React.FC = () => {
                                     const centerR = Math.floor(clipboard.height / 2);
                                     const centerC = Math.floor(clipboard.width / 2);
 
-                                    const updates = [];
+                                    const updates: {r: number, c: number, beadId: string | null}[] = [];
                                     Object.entries(clipboard.grid).forEach(([key, beadId]) => {
                                         const [dr, dc] = key.split('-').map(Number);
                                         const targetR = pos.r - centerR + dr;
                                         const targetC = pos.c - centerC + dc;
-                                        
+
                                         if (targetR >= 0 && targetR < project.rows && targetC >= 0 && targetC < project.columns) {
                                             updates.push({r: targetR, c: targetC, beadId});
                                         }
