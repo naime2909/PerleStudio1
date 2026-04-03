@@ -141,3 +141,6 @@ vite.config.ts.timestamp-*
 # Claude Code dev files
 CLAUDE.md
 .claude/
+
+# Shared/test files
+partage/

@@ -67,163 +67,218 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
       const html2canvas = (await import('html2canvas')).default;
 
       const doc = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
+      const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
+      const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
+      const margin = 15;
+      const contentWidth = pageWidth - margin * 2; // 180mm
 
+      const addFooter = () => {
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text('Créé avec PerleDesign Studio', pageWidth / 2, pageHeight - 8, { align: 'center' });
+        doc.setTextColor(0);
+      };
+
+      // Ensure yOffset doesn't overflow page, add new page if needed
+      const ensureSpace = (needed: number, y: number): number => {
+        if (y + needed > pageHeight - 15) {
+          addFooter();
+          doc.addPage();
+          return 15;
+        }
+        return y;
+      };
+
+      // ===== PAGE 1: HEADER + PREVIEW + INFO =====
       // Title
       doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
       doc.text('PERLE DESIGN STUDIO', pageWidth / 2, 15, { align: 'center' });
       doc.setFontSize(14);
       doc.text('Fiche Technique', pageWidth / 2, 22, { align: 'center' });
-
       doc.setLineWidth(0.5);
-      doc.line(15, 25, pageWidth - 15, 25);
+      doc.line(margin, 25, pageWidth - margin, 25);
 
-      // Get preview canvas
+      let y = 30;
+
+      // Preview image
       const previewElement = document.querySelector('[data-visual-preview]') as HTMLElement;
-      let yOffset = 30;
-
       if (previewElement) {
         try {
-          const canvas = await html2canvas(previewElement, {
-            backgroundColor: '#f8fafc',
-            scale: 2
-          });
+          const canvas = await html2canvas(previewElement, { backgroundColor: '#f8fafc', scale: 2 });
           const imgData = canvas.toDataURL('image/png');
-          const imgWidth = pageWidth - 30;
-          const imgHeight = (canvas.height * imgWidth) / canvas.width;
-          doc.addImage(imgData, 'PNG', 15, yOffset, imgWidth, Math.min(imgHeight, 40));
-          yOffset += Math.min(imgHeight, 40) + 10;
+          const imgW = contentWidth;
+          const imgH = Math.min((canvas.height * imgW) / canvas.width, 45);
+          doc.addImage(imgData, 'PNG', margin, y, imgW, imgH);
+          y += imgH + 8;
         } catch (err) {
           console.warn('Could not capture preview:', err);
-          yOffset += 5;
         }
       }
 
-      // Left: Grid schema (simplified)
+      // --- Info section (2 columns) ---
+      const col1X = margin;
+      const col2X = margin + contentWidth / 2;
+
+      // Left column: Material list
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text('Schéma de la Grille', 15, yOffset);
-      yOffset += 7;
-
-      const gridStartY = yOffset;
-      const cellWidth = 3;
-      const cellHeight = 2.4;
-      const maxCols = Math.min(project.columns, 20);
-      const maxRows = Math.min(project.rows, 30);
-
-      // Draw grid
-      doc.setFontSize(6);
-      doc.setFont('helvetica', 'normal');
-      for (let c = 0; c < maxCols; c++) {
-        doc.text((c + 1).toString(), 20 + c * cellWidth, gridStartY - 1, { align: 'center' });
-      }
-
-      for (let r = 0; r < maxRows; r++) {
-        doc.text((r + 1).toString(), 16, gridStartY + r * cellHeight + 1.2);
-
-        for (let c = 0; c < maxCols; c++) {
-          const beadId = project.grid[`${r}-${c}`];
-          const bead = beadTypes.find(b => b.id === beadId);
-
-          let x = 20 + c * cellWidth;
-          let y = gridStartY + r * cellHeight;
-
-          // Apply stitch offset
-          if (project.mode === 'peyote' && isOffsetIdx(c, stitchStep)) {
-            y += cellHeight / 2;
-          } else if (project.mode === 'brick' && isOffsetIdx(r, stitchStep)) {
-            x += cellWidth / 2;
-          }
-
-          if (bead) {
-            doc.setFillColor(bead.hex);
-            doc.roundedRect(x, y, cellWidth, cellHeight, 0.3, 0.3, 'F');
-          }
-          doc.roundedRect(x, y, cellWidth, cellHeight, 0.3, 0.3, 'S');
-        }
-      }
-
-      // Calculate grid end position
-      const peyoteOffsetValue = project.mode === 'peyote' ? cellHeight / 2
-        : project.mode === 'brick' ? cellWidth / 2 : 0;
-      const gridEndY = gridStartY + maxRows * cellHeight + (project.mode === 'peyote' ? peyoteOffsetValue : 0) + 5;
-
-      // Right side info
-      const rightX = 110;
-      let rightY = gridStartY;
-
-      // Material list
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Matériel Nécessaire', rightX, rightY);
-      rightY += 7;
+      doc.text('Matériel Nécessaire', col1X, y);
+      let matY = y + 6;
 
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-
       if (totalBeads === 0) {
-        doc.text('Aucune perle utilisée', rightX, rightY);
-        rightY += 6;
+        doc.text('Aucune perle utilisée', col1X, matY);
+        matY += 5;
       } else {
         Object.entries(inventory).forEach(([beadId, count]) => {
           const bead = beadTypes.find(b => b.id === beadId);
           if (!bead) return;
-
           const grams = (count * 0.005).toFixed(1);
           doc.setFillColor(bead.hex);
-          doc.roundedRect(rightX, rightY - 3, 4, 3.2, 0.3, 0.3, 'F');
-          doc.roundedRect(rightX, rightY - 3, 4, 3.2, 0.3, 0.3, 'S');
-
-          doc.text(`${bead.name}: ${count} perles (~${grams}g)`, rightX + 6, rightY);
-          rightY += 5;
+          doc.roundedRect(col1X, matY - 3, 4, 3.2, 0.3, 0.3, 'F');
+          doc.setDrawColor(180);
+          doc.roundedRect(col1X, matY - 3, 4, 3.2, 0.3, 0.3, 'S');
+          doc.text(`${bead.name}: ${count} perles (~${grams}g)`, col1X + 6, matY);
+          matY += 5;
         });
       }
 
-      rightY += 3;
-
-      // Dimensions
+      // Right column: Dimensions + Info
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text('Dimensions', rightX, rightY);
-      rightY += 7;
+      doc.text('Dimensions', col2X, y);
+      let infoY = y + 6;
 
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Largeur: ${widthCm.toFixed(1)} cm (${project.columns} colonnes)`, rightX, rightY);
-      rightY += 5;
-      doc.text(`Longueur: ${lengthCm.toFixed(1)} cm (${project.rows} rangs)`, rightX, rightY);
-      rightY += 5;
+      doc.text(`Largeur: ${widthCm.toFixed(1)} cm (${project.columns} colonnes)`, col2X, infoY);
+      infoY += 5;
+      doc.text(`Longueur: ${lengthCm.toFixed(1)} cm (${project.rows} rangs)`, col2X, infoY);
+      infoY += 5;
       if (isBracelet) {
-        doc.text(`Tour de poignet: ${settings.wristSizeCm} cm`, rightX, rightY);
-        rightY += 5;
+        doc.text(`Tour de poignet: ${settings.wristSizeCm} cm`, col2X, infoY);
+        infoY += 5;
       }
-      rightY += 3;
+      infoY += 3;
 
-      // Info
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text('Informations', rightX, rightY);
-      rightY += 7;
+      doc.text('Informations', col2X, infoY);
+      infoY += 6;
 
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
       const beadSizeLabel = beadSizes.find(s => s.value === settings.beadSizeMm)?.label || 'Delica 11/0';
-      doc.text(`Type: ${beadSizeLabel}`, rightX, rightY);
-      rightY += 5;
-      doc.text(`Forme: ${getShapeLabel(shape)}`, rightX, rightY);
-      rightY += 5;
-      doc.text(`Mode: ${getModeLabel(project.mode)}${project.mode !== 'loom' ? ` (1/${stitchStep})` : ''}`, rightX, rightY);
-      rightY += 5;
-      doc.text(`Date: ${new Date().toLocaleDateString('fr-FR')}`, rightX, rightY);
+      doc.text(`Type: ${beadSizeLabel}`, col2X, infoY); infoY += 5;
+      doc.text(`Forme: ${getShapeLabel(shape)}`, col2X, infoY); infoY += 5;
+      doc.text(`Mode: ${getModeLabel(project.mode)}${project.mode !== 'loom' ? ` (1/${stitchStep})` : ''}`, col2X, infoY); infoY += 5;
+      doc.text(`Date: ${new Date().toLocaleDateString('fr-FR')}`, col2X, infoY);
 
-      // Footer
-      doc.setFontSize(8);
-      doc.setTextColor(150);
-      doc.text('Créé avec PerleDesign Studio', pageWidth / 2, pageHeight - 10, { align: 'center' });
+      y = Math.max(matY, infoY) + 8;
 
-      // Save
+      // ===== GRID SCHEMA (full width, multi-page) =====
+      const totalCols = project.columns;
+      const totalRows = project.rows;
+      const gridMarginLeft = margin + 8; // room for row labels
+      const gridAvailWidth = contentWidth - 8; // minus label space
+
+      // Dynamic cell size: fit all columns in available width, cap at 4mm
+      const cellW = Math.min(gridAvailWidth / totalCols, 4);
+      const cellH = cellW * 0.8; // Delica ratio
+      const labelFontSize = Math.max(3.5, Math.min(6, cellW * 1.6));
+      const radius = Math.min(0.3, cellW * 0.1);
+
+      // How many rows fit on remaining space of current page
+      const firstPageAvail = pageHeight - y - 20;
+      const rowsFirstPage = Math.max(1, Math.floor(firstPageAvail / cellH));
+      const rowsPerFullPage = Math.max(1, Math.floor((pageHeight - 30) / cellH));
+
+      let rowsDrawn = 0;
+      let pageNum = 0;
+
+      while (rowsDrawn < totalRows) {
+        const isFirstGridPage = (pageNum === 0);
+        if (!isFirstGridPage) {
+          addFooter();
+          doc.addPage();
+          y = 15;
+        }
+
+        const maxRowsThisPage = isFirstGridPage ? rowsFirstPage : rowsPerFullPage;
+        const startRow = rowsDrawn;
+        const endRow = Math.min(startRow + maxRowsThisPage, totalRows);
+
+        // Section title
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        const gridTitle = totalRows > maxRowsThisPage
+          ? `Schéma (rangs ${startRow + 1}-${endRow})`
+          : 'Schéma de la Grille';
+        doc.text(gridTitle, margin, y);
+        y += 5;
+
+        const gridStartY = y + (labelFontSize > 4 ? 3 : 2);
+
+        // Column headers
+        doc.setFontSize(labelFontSize);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100);
+        for (let c = 0; c < totalCols; c++) {
+          doc.text(
+            (c + 1).toString(),
+            gridMarginLeft + c * cellW + cellW / 2,
+            gridStartY - 1,
+            { align: 'center' }
+          );
+        }
+        doc.setTextColor(0);
+
+        // Draw rows
+        for (let r = startRow; r < endRow; r++) {
+          const localR = r - startRow;
+
+          // Row label
+          doc.setFontSize(labelFontSize);
+          doc.setTextColor(100);
+          doc.text(
+            (r + 1).toString(),
+            gridMarginLeft - 1.5,
+            gridStartY + localR * cellH + cellH * 0.65,
+            { align: 'right' }
+          );
+          doc.setTextColor(0);
+
+          for (let c = 0; c < totalCols; c++) {
+            const beadId = project.grid[`${r}-${c}`];
+            const bead = beadTypes.find(b => b.id === beadId);
+
+            let x = gridMarginLeft + c * cellW;
+            let cellY = gridStartY + localR * cellH;
+
+            if (project.mode === 'peyote' && isOffsetIdx(c, stitchStep)) {
+              cellY += cellH / 2;
+            } else if (project.mode === 'brick' && isOffsetIdx(r, stitchStep)) {
+              x += cellW / 2;
+            }
+
+            if (bead) {
+              doc.setFillColor(bead.hex);
+              doc.roundedRect(x, cellY, cellW, cellH, radius, radius, 'F');
+            }
+            doc.setDrawColor(200);
+            doc.roundedRect(x, cellY, cellW, cellH, radius, radius, 'S');
+          }
+        }
+
+        rowsDrawn = endRow;
+        pageNum++;
+      }
+
+      // Footer on last page
+      addFooter();
+
       doc.save(`fiche-technique-${shape}.pdf`);
     } catch (error) {
       console.error('Erreur génération PDF:', error);
