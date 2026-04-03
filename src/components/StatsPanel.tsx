@@ -21,7 +21,9 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
 
   const shape = project.shape || 'bracelet';
   const isBracelet = shape === 'bracelet';
+  const isSquare = shape === 'square' || shape === 'circle';
   const stitchStep = project.stitchStep || 2;
+  const isOffsetIdx = (index: number, step: number) => Math.floor(index / step) % 2 !== 0;
 
   const beadWidth = settings.beadSizeMm;
   const beadHeight = settings.beadSizeMm * 0.85;
@@ -129,9 +131,9 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
           let y = gridStartY + r * cellHeight;
 
           // Apply stitch offset
-          if (project.mode === 'peyote' && c % stitchStep !== 0) {
+          if (project.mode === 'peyote' && isOffsetIdx(c, stitchStep)) {
             y += cellHeight / 2;
-          } else if (project.mode === 'brick' && r % stitchStep !== 0) {
+          } else if (project.mode === 'brick' && isOffsetIdx(r, stitchStep)) {
             x += cellWidth / 2;
           }
 
@@ -283,7 +285,24 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
             <Ruler size={16} /> Dimensions & Ajustement
            </h4>
 
-           <div className="grid grid-cols-2 gap-3 mb-3">
+           {isSquare ? (
+             /* Single size control for square/circle */
+             <div className="bg-slate-50 p-2 rounded border border-slate-100 flex flex-col items-center mb-3">
+                 <span className="text-[10px] font-bold text-slate-400 uppercase mb-2">{shape === 'circle' ? 'Diamètre' : 'Taille'} (Colonnes)</span>
+                 <div className="flex items-center gap-1 mb-1 bg-white border border-slate-200 rounded p-0.5">
+                     <button onClick={() => onResize('columns', -1)} className="p-1.5 hover:bg-slate-50 text-slate-500 rounded"><Minus size={14}/></button>
+                     <input
+                       type="number"
+                       value={project.columns}
+                       onChange={(e) => onSetDimension('columns', Math.max(1, parseInt(e.target.value) || 1))}
+                       className="w-10 text-center text-sm font-bold outline-none border-none p-0 bg-white text-slate-900 placeholder-slate-400"
+                     />
+                     <button onClick={() => onResize('columns', 1)} className="p-1.5 hover:bg-slate-50 text-slate-500 rounded"><Plus size={14}/></button>
+                 </div>
+                 <div className="text-xs font-bold text-indigo-600 mt-1">{widthCm.toFixed(1)} × {widthCm.toFixed(1)} cm</div>
+             </div>
+           ) : (
+             <div className="grid grid-cols-2 gap-3 mb-3">
               {/* Columns Control */}
               <div className="bg-slate-50 p-2 rounded border border-slate-100 flex flex-col items-center">
                   <span className="text-[10px] font-bold text-slate-400 uppercase mb-2">Largeur (Colonnes)</span>
@@ -323,7 +342,8 @@ const StatsPanel: React.FC<StatsPanelProps> = ({
                     </div>
                   )}
               </div>
-           </div>
+             </div>
+           )}
 
            {isBracelet && (
              <div className="text-xs text-center bg-indigo-50 text-indigo-800 p-2 rounded border border-indigo-100">

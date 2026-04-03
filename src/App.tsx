@@ -255,30 +255,43 @@ const App: React.FC = () => {
     pushToHistory({ ...project, grid: newGrid });
   };
 
+  const isSquareShape = (project.shape === 'square' || project.shape === 'circle');
+
   const handleResize = (dim: 'rows' | 'columns', delta: number) => {
-    pushToHistory({
-      ...project,
-      [dim]: Math.max(1, project[dim] + delta)
-    });
+    const newVal = Math.max(1, project[dim] + delta);
+    if (isSquareShape) {
+      pushToHistory({ ...project, columns: newVal, rows: newVal });
+    } else {
+      pushToHistory({ ...project, [dim]: newVal });
+    }
   };
 
   const handleSetDimension = (dim: 'rows' | 'columns', value: number) => {
-    pushToHistory({
-      ...project,
-      [dim]: Math.max(1, value)
-    });
+    const newVal = Math.max(1, value);
+    if (isSquareShape) {
+      pushToHistory({ ...project, columns: newVal, rows: newVal });
+    } else {
+      pushToHistory({ ...project, [dim]: newVal });
+    }
   };
 
   const handleModeChange = (m: StitchType) => {
       pushToHistory({ ...project, mode: m });
   };
 
-  const handleStitchStepChange = (step: 2 | 3) => {
+  const handleStitchStepChange = (step: 1 | 2 | 3) => {
       pushToHistory({ ...project, stitchStep: step });
   };
 
   const handleShapeChange = (shape: ProjectShape) => {
-      pushToHistory({ ...project, shape });
+      const updates: Partial<ProjectState> = { shape };
+      // Sync dimensions for square/circle shapes
+      if (shape === 'square' || shape === 'circle') {
+        const size = Math.min(project.columns, project.rows);
+        updates.columns = size;
+        updates.rows = size;
+      }
+      pushToHistory({ ...project, ...updates });
   };
 
   const handleJumpToHistory = (index: number) => {
@@ -755,6 +768,16 @@ const App: React.FC = () => {
                                 <label className="block text-[10px] font-bold text-indigo-900 mb-1">Point de décalage:</label>
                                 <div className="flex gap-2">
                                     <button
+                                        onClick={() => handleStitchStepChange(1)}
+                                        className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded transition-colors ${
+                                            project.stitchStep === 1
+                                                ? 'bg-indigo-600 text-white shadow-sm'
+                                                : 'bg-white text-indigo-700 hover:bg-indigo-100'
+                                        }`}
+                                    >
+                                        1/1
+                                    </button>
+                                    <button
                                         onClick={() => handleStitchStepChange(2)}
                                         className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded transition-colors ${
                                             (project.stitchStep || 2) === 2
@@ -762,7 +785,7 @@ const App: React.FC = () => {
                                                 : 'bg-white text-indigo-700 hover:bg-indigo-100'
                                         }`}
                                     >
-                                        1 sur 2
+                                        1/2
                                     </button>
                                     <button
                                         onClick={() => handleStitchStepChange(3)}
@@ -772,13 +795,14 @@ const App: React.FC = () => {
                                                 : 'bg-white text-indigo-700 hover:bg-indigo-100'
                                         }`}
                                     >
-                                        1 sur 3
+                                        1/3
                                     </button>
                                 </div>
                                 <p className="text-[9px] text-indigo-700 mt-1">
                                     {project.mode === 'peyote'
                                         ? `Décale 1 colonne sur ${project.stitchStep || 2} vers le bas`
                                         : `Décale 1 ligne sur ${project.stitchStep || 2} vers la droite`}
+                                    {project.stitchStep === 1 && ' (toutes décalées)'}
                                 </p>
                             </div>
                         )}
@@ -1086,6 +1110,7 @@ const App: React.FC = () => {
                         <PatternEditor
                             mode={project.mode}
                             stitchStep={project.stitchStep}
+                            shape={project.shape}
                             columns={project.columns}
                             rows={project.rows}
                             grid={project.grid}

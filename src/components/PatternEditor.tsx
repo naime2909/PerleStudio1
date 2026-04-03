@@ -1,6 +1,6 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { BeadType, PatternGrid, StitchType, ToolMode, OverlayImage, SelectionArea, ClipboardData } from '../types';
+import { BeadType, PatternGrid, StitchType, ProjectShape, ToolMode, OverlayImage, SelectionArea, ClipboardData } from '../types';
 import BeadRenderer from './BeadRenderer';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { EDITOR_CONSTANTS } from '../constants';
@@ -8,6 +8,7 @@ import { EDITOR_CONSTANTS } from '../constants';
 interface PatternEditorProps {
   mode: StitchType;
   stitchStep?: 2 | 3;
+  shape?: ProjectShape;
   columns: number;
   rows: number;
   grid: PatternGrid;
@@ -29,7 +30,7 @@ interface PatternEditorProps {
 }
 
 const PatternEditor: React.FC<PatternEditorProps> = ({
-  mode, stitchStep = 2, columns, rows, grid, beadTypes, selectedBeadId, toolMode, isFilled = true, overlay, zoomLevel = 1,
+  mode, stitchStep = 2, shape = 'bracelet', columns, rows, grid, beadTypes, selectedBeadId, toolMode, isFilled = true, overlay, zoomLevel = 1,
   selection, onSelectionChange, clipboard, onPaste,
   onUpdateGrid, onFillRow, onFillCol,
   onOverlayUpdate, isOverlayLocked = false
@@ -494,6 +495,9 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
   }
 
   // Grid Dimensions
+  // Offset helper: determines if a column/row should be offset based on stitchStep
+  const isOffset = (index: number, step: number) => Math.floor(index / step) % 2 !== 0;
+
   const gridContentWidth = columns * CELL_WIDTH + (mode === 'brick' ? CELL_WIDTH/2 : 0);
   const gridContentHeight = rows * CELL_HEIGHT + (mode === 'peyote' ? CELL_HEIGHT/2 : 0);
 
@@ -602,9 +606,9 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                         let top = 0;
 
                         // Apply stitch offset
-                        if (mode === 'peyote' && c % stitchStep !== 0) {
+                        if (mode === 'peyote' && isOffset(c, stitchStep)) {
                             top += CELL_HEIGHT / 2;
-                        } else if (mode === 'brick' && r % stitchStep !== 0) {
+                        } else if (mode === 'brick' && isOffset(r, stitchStep)) {
                             left += CELL_WIDTH / 2;
                         }
 
@@ -656,9 +660,9 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                              let top = targetR * CELL_HEIGHT;
 
                              // Apply stitch offset for paste ghost
-                             if (mode === 'peyote' && Math.abs(targetC) % stitchStep !== 0) {
+                             if (mode === 'peyote' && isOffset(Math.abs(targetC), stitchStep)) {
                                  top += CELL_HEIGHT / 2;
-                             } else if (mode === 'brick' && Math.abs(targetR) % stitchStep !== 0) {
+                             } else if (mode === 'brick' && isOffset(Math.abs(targetR), stitchStep)) {
                                  left += CELL_WIDTH / 2;
                              }
 
@@ -677,7 +681,7 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
 
                 {/* Selection Overlay */}
                 {selection && (
-                    <div 
+                    <div
                         className="absolute border-2 border-indigo-500 bg-indigo-500/10 pointer-events-none z-50 border-dashed"
                         style={{
                             top: Math.min(selection.r1, selection.r2) * CELL_HEIGHT,
@@ -686,6 +690,43 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                             width: (Math.abs(selection.c2 - selection.c1) + 1) * CELL_WIDTH + (mode === 'brick' ? CELL_WIDTH/2 : 0)
                         }}
                     />
+                )}
+
+                {/* Circle guide overlay */}
+                {shape === 'circle' && (
+                    <svg
+                        className="absolute inset-0 pointer-events-none z-40"
+                        width={gridContentWidth}
+                        height={gridContentHeight}
+                    >
+                        <ellipse
+                            cx={gridContentWidth / 2}
+                            cy={gridContentHeight / 2}
+                            rx={gridContentWidth / 2 - 1}
+                            ry={gridContentHeight / 2 - 1}
+                            fill="none"
+                            stroke="rgba(99, 102, 241, 0.5)"
+                            strokeWidth="2"
+                            strokeDasharray="6 4"
+                        />
+                        {/* Dim outside area */}
+                        <mask id="circle-mask">
+                            <rect width={gridContentWidth} height={gridContentHeight} fill="white" />
+                            <ellipse
+                                cx={gridContentWidth / 2}
+                                cy={gridContentHeight / 2}
+                                rx={gridContentWidth / 2}
+                                ry={gridContentHeight / 2}
+                                fill="black"
+                            />
+                        </mask>
+                        <rect
+                            width={gridContentWidth}
+                            height={gridContentHeight}
+                            fill="rgba(0,0,0,0.08)"
+                            mask="url(#circle-mask)"
+                        />
+                    </svg>
                 )}
 
             </div>

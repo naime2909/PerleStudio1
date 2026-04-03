@@ -29,7 +29,7 @@ export type PatternGrid = Record<string, string>;
 
 export interface ProjectState {
   mode: StitchType;
-  stitchStep?: 2 | 3;       // Offset every N columns/rows (default 2)
+  stitchStep?: 1 | 2 | 3;   // Offset every N columns/rows (default 2)
   shape?: ProjectShape;      // Project shape (default 'bracelet' for backward compat)
   columns: number;           // Largeur en nombre de perles
   rows: number;              // Longueur en nombre de perles

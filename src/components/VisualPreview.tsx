@@ -10,6 +10,7 @@ interface VisualPreviewProps {
 
 const VisualPreview: React.FC<VisualPreviewProps> = ({ project, beadTypes, orientation = 'vertical' }) => {
   const { rows, columns: cols, mode, stitchStep = 2, grid } = project;
+  const isOffset = (index: number, step: number) => Math.floor(index / step) % 2 !== 0;
   const isHorizontal = orientation === 'horizontal';
 
   // Dimensions virtuelles pour le dessin vectoriel
@@ -76,17 +77,17 @@ const VisualPreview: React.FC<VisualPreviewProps> = ({ project, beadTypes, orien
                         if (isHorizontal) {
                             x = r * BEAD_H_BASE;
                             y = c * BEAD_W_BASE;
-                            if (mode === 'peyote' && c % stitchStep !== 0) {
+                            if (mode === 'peyote' && isOffset(c, stitchStep)) {
                                 x += BEAD_H_BASE / 2;
-                            } else if (mode === 'brick' && r % stitchStep !== 0) {
+                            } else if (mode === 'brick' && isOffset(r, stitchStep)) {
                                 y += BEAD_W_BASE / 2;
                             }
                         } else {
                             x = c * BEAD_W_BASE;
                             y = r * BEAD_H_BASE;
-                            if (mode === 'peyote' && c % stitchStep !== 0) {
+                            if (mode === 'peyote' && isOffset(c, stitchStep)) {
                                 y += BEAD_H_BASE / 2;
-                            } else if (mode === 'brick' && r % stitchStep !== 0) {
+                            } else if (mode === 'brick' && isOffset(r, stitchStep)) {
                                 x += BEAD_W_BASE / 2;
                             }
                         }
