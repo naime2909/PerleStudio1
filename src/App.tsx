@@ -51,7 +51,7 @@ const App: React.FC = () => {
   // UI State
   const [showSpecs, setShowSpecs] = useState(false); // Used for modal on desktop, ignored on mobile
   const [showPaletteModal, setShowPaletteModal] = useState(false);
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(window.innerWidth >= 1024);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [showColorReplaceModal, setShowColorReplaceModal] = useState(false);
   const [showFillEmptyModal, setShowFillEmptyModal] = useState(false);
@@ -624,13 +624,13 @@ const App: React.FC = () => {
   return (
     <div className="h-[100dvh] bg-slate-100 text-slate-800 font-sans flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white z-40 shrink-0 h-14 flex items-center px-4 justify-between shadow-lg">
-          <div className="flex items-center gap-4">
-            <div className="text-2xl">🎨</div>
-            <div>
-              <h1 className="text-lg sm:text-xl font-bold">PerleDesign Studio</h1>
+      <header className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white z-40 shrink-0 h-11 lg:h-14 flex items-center px-3 lg:px-4 justify-between shadow-lg">
+          <div className="flex items-center gap-2 lg:gap-4 min-w-0">
+            <div className="text-xl lg:text-2xl shrink-0">🎨</div>
+            <div className="min-w-0">
+              <h1 className="text-sm lg:text-xl font-bold truncate">PerleDesign Studio</h1>
               {activeTab === 'editor' && lastSaved && (
-                <p className="text-xs text-indigo-100">{formatLastSaved()}</p>
+                <p className="text-[10px] lg:text-xs text-indigo-100 hidden sm:block">{formatLastSaved()}</p>
               )}
             </div>
           </div>
@@ -647,19 +647,32 @@ const App: React.FC = () => {
             </div>
           )}
 
-          <button 
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="lg:hidden p-2 bg-white/20 rounded hover:bg-white/30"
-          >
-            {isSidebarOpen ? <X size={24}/> : <Menu size={24}/>}
-          </button>
+          <div className="flex items-center gap-1 lg:gap-2 shrink-0">
+            {/* Undo/Redo quick access on mobile */}
+            {activeTab === 'editor' && (
+              <div className="flex items-center gap-0.5 lg:hidden">
+                <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-1.5 bg-white/20 rounded hover:bg-white/30 disabled:opacity-30">
+                  <Undo2 size={18}/>
+                </button>
+                <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-1.5 bg-white/20 rounded hover:bg-white/30 disabled:opacity-30">
+                  <Redo2 size={18}/>
+                </button>
+              </div>
+            )}
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="lg:hidden p-1.5 bg-white/20 rounded hover:bg-white/30"
+            >
+              {isSidebarOpen ? <X size={20}/> : <Menu size={20}/>}
+            </button>
+          </div>
       </header>
 
       {/* TABS NAVIGATION */}
-      <div className="bg-white border-b border-slate-200 px-4 flex gap-1 overflow-x-auto z-30 shrink-0">
+      <div className="bg-white border-b border-slate-200 px-2 lg:px-4 flex gap-0 lg:gap-1 overflow-x-auto z-30 shrink-0">
         <button
           onClick={() => setActiveTab('editor')}
-          className={`px-4 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
+          className={`px-2 lg:px-4 py-2 lg:py-3 font-semibold text-xs lg:text-sm whitespace-nowrap border-b-2 transition-colors ${
             activeTab === 'editor'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-600 hover:text-slate-900'
@@ -669,7 +682,7 @@ const App: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab('templates')}
-          className={`px-4 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
+          className={`px-2 lg:px-4 py-2 lg:py-3 font-semibold text-xs lg:text-sm whitespace-nowrap border-b-2 transition-colors ${
             activeTab === 'templates'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-600 hover:text-slate-900'
@@ -679,7 +692,7 @@ const App: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab('convert')}
-          className={`px-4 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
+          className={`px-2 lg:px-4 py-2 lg:py-3 font-semibold text-xs lg:text-sm whitespace-nowrap border-b-2 transition-colors ${
             activeTab === 'convert'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-600 hover:text-slate-900'
@@ -689,7 +702,7 @@ const App: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab('projects')}
-          className={`px-4 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
+          className={`px-2 lg:px-4 py-2 lg:py-3 font-semibold text-xs lg:text-sm whitespace-nowrap border-b-2 transition-colors ${
             activeTab === 'projects'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-600 hover:text-slate-900'
@@ -699,7 +712,7 @@ const App: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab('settings')}
-          className={`px-4 py-3 font-semibold text-sm whitespace-nowrap border-b-2 transition-colors ${
+          className={`px-2 lg:px-4 py-2 lg:py-3 font-semibold text-xs lg:text-sm whitespace-nowrap border-b-2 transition-colors ${
             activeTab === 'settings'
               ? 'border-indigo-600 text-indigo-600'
               : 'border-transparent text-slate-600 hover:text-slate-900'
@@ -717,16 +730,24 @@ const App: React.FC = () => {
             className={`
                 fixed z-30 bg-white/98 backdrop-blur-sm shadow-2xl transition-all duration-300 flex flex-col
                 
-                top-14 left-0 right-0 max-h-[65vh] w-full overflow-y-auto border-b border-slate-300
+                top-11 lg:top-14 left-0 right-0 max-h-[55vh] lg:max-h-[65vh] w-full overflow-y-auto border-b border-slate-300
                 ${isSidebarOpen ? 'translate-y-0' : '-translate-y-full'}
                 
                 lg:translate-y-0 lg:translate-x-0 lg:inset-y-0 lg:left-0 lg:right-auto 
                 lg:w-72 lg:max-h-none lg:border-r lg:border-b-0 lg:shadow-none lg:relative
             `}
         >
-            <div className="flex justify-between items-center p-4 border-b border-slate-100 lg:hidden">
-                <h3 className="font-bold text-slate-800">Outils & Config</h3>
-                <button onClick={() => setIsSidebarOpen(false)} className="p-1 bg-slate-100 rounded-full">
+            <div className="flex justify-between items-center p-3 border-b border-slate-100 lg:hidden">
+                <div className="flex-1 min-w-0 mr-2">
+                  <input
+                    type="text"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded text-sm font-bold text-slate-800 focus:ring-1 focus:ring-indigo-500 outline-none"
+                    placeholder="Nom du projet"
+                  />
+                </div>
+                <button onClick={() => setIsSidebarOpen(false)} className="p-1 bg-slate-100 rounded-full shrink-0">
                     <X size={20}/>
                 </button>
             </div>
@@ -985,7 +1006,7 @@ const App: React.FC = () => {
             <div className={`flex-1 flex flex-col min-h-0 ${mobileTab === 'specs' ? 'hidden lg:flex' : 'flex'}`}>
                 {/* TOP: Visual Preview (Horizontal Strip) - Conditional Render */}
                 {showPreview && (
-                    <div className="h-28 sm:h-48 shrink-0 p-2 sm:p-3 bg-slate-100/50 border-b border-slate-200 z-10 relative group" data-visual-preview>
+                    <div className="h-20 sm:h-28 lg:h-48 shrink-0 p-1.5 sm:p-2 lg:p-3 bg-slate-100/50 border-b border-slate-200 z-10 relative group" data-visual-preview>
                         <VisualPreview project={project} beadTypes={activeBeads} orientation="horizontal" />
                         <button
                             onClick={() => setShowPreview(false)}
@@ -999,85 +1020,89 @@ const App: React.FC = () => {
 
                 {/* BOTTOM: Editor */}
                 <div className="flex-1 relative min-h-0 flex flex-col">
-                    {/* Zoom & Tools Bar (Moved Tools Here) */}
-                    <div className="h-10 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-4 overflow-x-auto gap-4 scrollbar-thin">
-                         <div className="flex items-center gap-4 shrink-0">
+                    {/* Zoom & Tools Bar */}
+                    <div className="h-9 lg:h-10 shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-2 lg:px-4 overflow-x-auto gap-2 lg:gap-4 scrollbar-thin">
+                         <div className="flex items-center gap-2 lg:gap-4 shrink-0">
                              {/* Zoom Controls */}
-                             <div className="flex items-center gap-1 bg-slate-100 rounded-md p-1">
-                                 <button onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.25))} className="p-1 hover:bg-white rounded text-slate-500"><ZoomOut size={16}/></button>
-                                 <span className="text-xs font-bold w-12 text-center">{Math.round(zoomLevel * 100)}%</span>
-                                 <button onClick={() => setZoomLevel(Math.min(3, zoomLevel + 0.25))} className="p-1 hover:bg-white rounded text-slate-500"><ZoomIn size={16}/></button>
+                             <div className="flex items-center gap-0.5 lg:gap-1 bg-slate-100 rounded-md p-0.5 lg:p-1">
+                                 <button onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.25))} className="p-1 hover:bg-white rounded text-slate-500"><ZoomOut size={14}/></button>
+                                 <span className="text-[10px] lg:text-xs font-bold w-9 lg:w-12 text-center">{Math.round(zoomLevel * 100)}%</span>
+                                 <button onClick={() => setZoomLevel(Math.min(3, zoomLevel + 0.25))} className="p-1 hover:bg-white rounded text-slate-500"><ZoomIn size={14}/></button>
                              </div>
 
-                             <div className="w-px h-6 bg-slate-200"></div>
+                             <div className="w-px h-5 lg:h-6 bg-slate-200"></div>
 
                              {/* Contextual Drawing Tools OR Selection Actions */}
                              {toolMode === 'select' && selection ? (
-                                <div className="flex items-center gap-2 animate-fade-in">
-                                    <span className="text-xs font-bold text-indigo-600 hidden sm:inline">Sélection:</span>
-                                    <button onClick={handleCopy} className="p-1.5 bg-indigo-50 border border-indigo-200 rounded text-indigo-700 hover:bg-indigo-100" title="Copier"><Copy size={18}/></button>
-                                    <button onClick={handleCut} className="p-1.5 bg-indigo-50 border border-indigo-200 rounded text-indigo-700 hover:bg-indigo-100" title="Couper"><Scissors size={18}/></button>
-                                    <button onClick={handleDuplicate} className="p-1.5 bg-indigo-50 border border-indigo-200 rounded text-indigo-700 hover:bg-indigo-100" title="Dupliquer"><ClipboardCopy size={18}/></button>
-                                    <div className="w-px h-6 bg-slate-200 mx-1"></div>
-                                    <button onClick={() => setSelection(null)} className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100" title="Annuler sélection"><X size={18}/></button>
+                                <div className="flex items-center gap-1 lg:gap-2 animate-fade-in">
+                                    <button onClick={handleCopy} className="p-1 lg:p-1.5 bg-indigo-50 border border-indigo-200 rounded text-indigo-700 hover:bg-indigo-100" title="Copier"><Copy size={16}/></button>
+                                    <button onClick={handleCut} className="p-1 lg:p-1.5 bg-indigo-50 border border-indigo-200 rounded text-indigo-700 hover:bg-indigo-100" title="Couper"><Scissors size={16}/></button>
+                                    <button onClick={handleDuplicate} className="p-1 lg:p-1.5 bg-indigo-50 border border-indigo-200 rounded text-indigo-700 hover:bg-indigo-100" title="Dupliquer"><ClipboardCopy size={16}/></button>
+                                    <button onClick={() => setSelection(null)} className="p-1 lg:p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100" title="Annuler"><X size={16}/></button>
                                 </div>
                              ) : (
-                                <div className="flex items-center gap-1">
-                                    <button onClick={() => setToolMode('pencil')} className={`p-1.5 rounded transition-all ${toolMode === 'pencil' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`} title="Crayon">
-                                        <Pencil size={18}/>
+                                <div className="flex items-center gap-0.5 lg:gap-1">
+                                    <button onClick={() => setToolMode('pencil')} className={`p-1 lg:p-1.5 rounded transition-all ${toolMode === 'pencil' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`} title="Crayon">
+                                        <Pencil size={16}/>
                                     </button>
-                                    <button onClick={() => setToolMode('select')} className={`p-1.5 rounded transition-all ${toolMode === 'select' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`} title="Sélectionner">
-                                        <MousePointer2 size={18} className="stroke-dashed"/>
+                                    <button onClick={() => setToolMode('eraser')} className={`p-1 lg:p-1.5 rounded transition-all ${toolMode === 'eraser' ? 'bg-red-50 text-red-600 border border-red-100' : 'text-slate-400 hover:bg-slate-100'}`} title="Gomme">
+                                        <Eraser size={16}/>
                                     </button>
-                                    <button onClick={() => setToolMode('rectangle')} className={`p-1.5 rounded transition-all ${toolMode === 'rectangle' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`} title="Rectangle">
-                                        <Square size={18}/>
+                                    <button onClick={() => setToolMode('select')} className={`p-1 lg:p-1.5 rounded transition-all ${toolMode === 'select' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`} title="Sélectionner">
+                                        <MousePointer2 size={16}/>
                                     </button>
-                                    <button onClick={() => setToolMode('circle')} className={`p-1.5 rounded transition-all ${toolMode === 'circle' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`} title="Cercle">
-                                        <Circle size={18}/>
+
+                                    <div className="w-px h-5 bg-slate-200 mx-0.5 hidden sm:block"></div>
+
+                                    {/* Shape tools - visible on sm+ */}
+                                    <button onClick={() => setToolMode('rectangle')} className={`hidden sm:block p-1 lg:p-1.5 rounded transition-all ${toolMode === 'rectangle' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`} title="Rectangle">
+                                        <Square size={16}/>
                                     </button>
-                                    <button onClick={() => setToolMode('polygon')} className={`p-1.5 rounded transition-all ${toolMode === 'polygon' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`} title="Polygone">
-                                        <Pentagon size={18}/>
+                                    <button onClick={() => setToolMode('circle')} className={`hidden sm:block p-1 lg:p-1.5 rounded transition-all ${toolMode === 'circle' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`} title="Cercle">
+                                        <Circle size={16}/>
                                     </button>
-                                    
+                                    <button onClick={() => setToolMode('polygon')} className={`hidden sm:block p-1 lg:p-1.5 rounded transition-all ${toolMode === 'polygon' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`} title="Polygone">
+                                        <Pentagon size={16}/>
+                                    </button>
+
                                     {/* Fill Option Toggle (Contextual) */}
                                     {(toolMode === 'rectangle' || toolMode === 'circle' || toolMode === 'polygon') && (
-                                    <button 
-                                        onClick={() => setIsFilled(!isFilled)} 
-                                        className={`p-1.5 rounded transition-all flex items-center gap-1 text-[10px] font-bold border ${isFilled ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-400'}`}
+                                    <button
+                                        onClick={() => setIsFilled(!isFilled)}
+                                        className={`p-1 lg:p-1.5 rounded transition-all flex items-center gap-1 text-[10px] font-bold border ${isFilled ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-400'}`}
                                         title="Remplir la forme"
                                     >
-                                        {isFilled ? <CheckSquare size={14}/> : <Square size={14}/>} Remplir
+                                        {isFilled ? <CheckSquare size={14}/> : <Square size={14}/>}
+                                        <span className="hidden sm:inline">Remplir</span>
                                     </button>
                                     )}
 
-                                    <div className="w-px h-6 bg-slate-200 mx-1"></div>
+                                    <div className="w-px h-5 bg-slate-200 mx-0.5"></div>
 
-                                    <button onClick={() => setToolMode('move')} className={`p-1.5 rounded transition-all ${toolMode === 'move' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`} title="Déplacer la vue (Main)">
-                                        <Hand size={18}/>
-                                    </button>
-                                    <button onClick={() => setToolMode('eraser')} className={`p-1.5 rounded transition-all ${toolMode === 'eraser' ? 'bg-red-50 text-red-600 border border-red-100' : 'text-slate-400 hover:bg-slate-100'}`} title="Gomme">
-                                        <Eraser size={18}/>
+                                    <button onClick={() => setToolMode('move')} className={`p-1 lg:p-1.5 rounded transition-all ${toolMode === 'move' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100'}`} title="Déplacer la vue">
+                                        <Hand size={16}/>
                                     </button>
                                 </div>
                              )}
 
-                             {toolMode === 'paste' && <span className="text-xs text-indigo-600 font-bold animate-pulse whitespace-nowrap">Mode Coller activé</span>}
+                             {toolMode === 'paste' && <span className="text-[10px] lg:text-xs text-indigo-600 font-bold animate-pulse whitespace-nowrap">Coller</span>}
                          </div>
 
-                         {/* Preview Toggle - Works on all screen sizes */}
+                         {/* Preview Toggle */}
                          {!showPreview && (
                              <button
                                 onClick={() => setShowPreview(true)}
-                                className="flex items-center gap-1 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+                                className="flex items-center gap-1 text-[10px] lg:text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 lg:px-3 py-1 lg:py-1.5 rounded-lg transition-colors shrink-0"
                                 title="Afficher l'aperçu"
                              >
-                                 <Eye size={16}/> Voir Aperçu
+                                 <Eye size={14}/>
+                                 <span className="hidden sm:inline">Voir Aperçu</span>
                              </button>
                          )}
                     </div>
 
                     {/* --- HORIZONTAL PALETTE BAR --- */}
-                    <div className="h-16 shrink-0 bg-white border-b border-slate-200 flex items-center px-4 overflow-x-auto gap-3 scrollbar-thin">
+                    <div className="h-12 lg:h-16 shrink-0 bg-white border-b border-slate-200 flex items-center px-2 lg:px-4 overflow-x-auto gap-2 lg:gap-3 scrollbar-thin">
                         
                         {activeBeads.map(bead => (
                             <button 
@@ -1089,13 +1114,13 @@ const App: React.FC = () => {
                                 className={`shrink-0 flex flex-col items-center gap-1 group relative outline-none`}
                                 onContextMenu={(e) => { e.preventDefault(); handleRemoveBead(bead.id); }}
                             >
-                                <div className={`w-8 h-8 rounded-full border shadow-sm relative transition-transform ${selectedBeadId === bead.id ? 'scale-110 ring-2 ring-indigo-500 border-white' : 'border-slate-100 hover:scale-105'}`} style={{ backgroundColor: bead.hex }}>
-                                    {bead.material === 'Brillant' && <div className="absolute top-1 right-1 w-2 h-2 bg-white rounded-full opacity-40"></div>}
+                                <div className={`w-7 h-7 lg:w-8 lg:h-8 rounded-full border shadow-sm relative transition-transform ${selectedBeadId === bead.id ? 'scale-110 ring-2 ring-indigo-500 border-white' : 'border-slate-100 hover:scale-105'}`} style={{ backgroundColor: bead.hex }}>
+                                    {bead.material === 'Brillant' && <div className="absolute top-0.5 right-0.5 lg:top-1 lg:right-1 w-1.5 h-1.5 lg:w-2 lg:h-2 bg-white rounded-full opacity-40"></div>}
                                     {selectedBeadId === bead.id && (
                                         <div className="absolute inset-0 rounded-full border-2 border-white"></div>
                                     )}
                                 </div>
-                                <span className={`text-[9px] max-w-[60px] truncate ${selectedBeadId === bead.id ? 'text-indigo-600 font-bold' : 'text-slate-400'}`}>
+                                <span className={`text-[8px] lg:text-[9px] max-w-[50px] lg:max-w-[60px] truncate hidden sm:block ${selectedBeadId === bead.id ? 'text-indigo-600 font-bold' : 'text-slate-400'}`}>
                                     {bead.name}
                                 </span>
                             </button>
@@ -1146,6 +1171,7 @@ const App: React.FC = () => {
                             }}
                             onOverlayUpdate={handleOverlayUpdate}
                             isOverlayLocked={isOverlayLocked}
+                            onZoomChange={setZoomLevel}
                         />
                     </div>
                 </div>
@@ -1186,22 +1212,45 @@ const App: React.FC = () => {
       </div>
 
       {/* MOBILE BOTTOM NAV */}
-      <div className="lg:hidden bg-white border-t border-slate-200 flex justify-around p-2 shrink-0 z-40">
-         <button 
-           onClick={() => setMobileTab('editor')}
-           className={`flex flex-col items-center gap-1 p-2 rounded-lg w-full ${mobileTab === 'editor' ? 'text-indigo-600 bg-indigo-50' : 'text-slate-500'}`}
+      {activeTab === 'editor' && (
+      <div className="lg:hidden bg-white border-t border-slate-200 flex items-center justify-around px-1 py-1.5 shrink-0 z-40 safe-area-bottom">
+         <button
+           onClick={() => { setMobileTab('editor'); setToolMode('pencil'); }}
+           className={`flex flex-col items-center p-1.5 rounded-lg ${mobileTab === 'editor' && toolMode === 'pencil' ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400'}`}
          >
-            <Grid size={20} />
-            <span className="text-[10px] font-bold">Éditeur</span>
+            <Pencil size={18} />
+            <span className="text-[9px] font-bold">Crayon</span>
          </button>
-         <button 
-           onClick={() => setMobileTab('specs')}
-           className={`flex flex-col items-center gap-1 p-2 rounded-lg w-full ${mobileTab === 'specs' ? 'text-indigo-600 bg-indigo-50' : 'text-slate-500'}`}
+         <button
+           onClick={() => { setMobileTab('editor'); setToolMode('eraser'); }}
+           className={`flex flex-col items-center p-1.5 rounded-lg ${toolMode === 'eraser' ? 'text-red-600 bg-red-50' : 'text-slate-400'}`}
          >
-            <ClipboardList size={20} />
-            <span className="text-[10px] font-bold">Infos & Matériel</span>
+            <Eraser size={18} />
+            <span className="text-[9px] font-bold">Gomme</span>
+         </button>
+         <button
+           onClick={() => { setMobileTab('editor'); setToolMode('move'); }}
+           className={`flex flex-col items-center p-1.5 rounded-lg ${toolMode === 'move' ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400'}`}
+         >
+            <Hand size={18} />
+            <span className="text-[9px] font-bold">Déplacer</span>
+         </button>
+         <button
+           onClick={() => setShowPaletteModal(true)}
+           className="flex flex-col items-center p-1.5 rounded-lg text-slate-400"
+         >
+            <Palette size={18} />
+            <span className="text-[9px] font-bold">Couleurs</span>
+         </button>
+         <button
+           onClick={() => setMobileTab(mobileTab === 'specs' ? 'editor' : 'specs')}
+           className={`flex flex-col items-center p-1.5 rounded-lg ${mobileTab === 'specs' ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400'}`}
+         >
+            <ClipboardList size={18} />
+            <span className="text-[9px] font-bold">Infos</span>
          </button>
       </div>
+      )}
 
       {/* TEMPLATES TAB */}
       <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'templates' ? 'flex' : 'none' }}>

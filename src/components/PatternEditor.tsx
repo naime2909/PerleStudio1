@@ -27,13 +27,15 @@ interface PatternEditorProps {
   onFillCol: (col: number) => void;
   onOverlayUpdate?: (overlay: OverlayImage) => void;
   isOverlayLocked?: boolean;
+  onZoomChange?: (zoom: number) => void;
 }
 
 const PatternEditor: React.FC<PatternEditorProps> = ({
   mode, stitchStep = 2, shape = 'bracelet', columns, rows, grid, beadTypes, selectedBeadId, toolMode, isFilled = true, overlay, zoomLevel = 1,
   selection, onSelectionChange, clipboard, onPaste,
   onUpdateGrid, onFillRow, onFillCol,
-  onOverlayUpdate, isOverlayLocked = false
+  onOverlayUpdate, isOverlayLocked = false,
+  onZoomChange
 }) => {
   // State for dragging shapes (Rectangle, Circle, Select)
   const [isDragging, setIsDragging] = useState(false);
@@ -51,6 +53,9 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
   // State for dragging overlay image
   const [isDraggingOverlay, setIsDraggingOverlay] = useState(false);
   const [overlayDragStart, setOverlayDragStart] = useState({ x: 0, y: 0, overlayX: 0, overlayY: 0 });
+
+  // Pinch-to-zoom state
+  const lastPinchDist = useRef<number | null>(null);
 
   // Responsive Cell Sizes
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
@@ -495,6 +500,34 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
   }
 
   // Grid Dimensions
+  // Pinch-to-zoom handlers
+  const handleTouchStartPinch = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastPinchDist.current = Math.hypot(dx, dy);
+    }
+  };
+
+  const handleTouchMovePinch = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && lastPinchDist.current !== null && onZoomChange) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const delta = dist - lastPinchDist.current;
+      if (Math.abs(delta) > 5) {
+        const newZoom = Math.min(3, Math.max(0.5, zoomLevel + delta * 0.005));
+        onZoomChange(newZoom);
+        lastPinchDist.current = dist;
+      }
+      e.preventDefault();
+    }
+  };
+
+  const handleTouchEndPinch = () => {
+    lastPinchDist.current = null;
+  };
+
   // Offset helper: determines if a column/row should be offset based on stitchStep
   const isOffset = (index: number, step: number) => Math.floor(index / step) % 2 !== 0;
 
@@ -509,12 +542,15 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
     >
       
       {/* Grid Canvas Area */}
-      <div 
+      <div
         ref={scrollContainerRef}
         className={`flex-1 overflow-auto bg-slate-100/50 relative scrollbar-thin scrollbar-thumb-slate-300 min-h-0 ${toolMode === 'move' ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
-        style={{ touchAction: toolMode === 'move' ? 'none' : 'auto' }}
+        style={{ touchAction: (toolMode === 'move' || toolMode === 'pencil' || toolMode === 'eraser') ? 'none' : 'auto' }}
         onMouseDown={handleContainerMouseDown}
         onMouseMove={handleContainerMouseMove}
+        onTouchStart={handleTouchStartPinch}
+        onTouchMove={handleTouchMovePinch}
+        onTouchEnd={handleTouchEndPinch}
       >
         <div className="min-w-full min-h-full p-4 sm:p-8 flex items-start sm:items-center justify-center">
           <div 
