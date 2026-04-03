@@ -1,13 +1,13 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { BeadType, PatternGrid, PatternMode, PeyoteOffset, ToolMode, OverlayImage, SelectionArea, ClipboardData } from '../types';
+import { BeadType, PatternGrid, StitchType, ToolMode, OverlayImage, SelectionArea, ClipboardData } from '../types';
 import BeadRenderer from './BeadRenderer';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { EDITOR_CONSTANTS } from '../constants';
 
 interface PatternEditorProps {
-  mode: PatternMode;
-  peyoteOffset?: PeyoteOffset;
+  mode: StitchType;
+  stitchStep?: 2 | 3;
   columns: number;
   rows: number;
   grid: PatternGrid;
@@ -29,7 +29,7 @@ interface PatternEditorProps {
 }
 
 const PatternEditor: React.FC<PatternEditorProps> = ({
-  mode, peyoteOffset = 'columns', columns, rows, grid, beadTypes, selectedBeadId, toolMode, isFilled = true, overlay, zoomLevel = 1,
+  mode, stitchStep = 2, columns, rows, grid, beadTypes, selectedBeadId, toolMode, isFilled = true, overlay, zoomLevel = 1,
   selection, onSelectionChange, clipboard, onPaste,
   onUpdateGrid, onFillRow, onFillCol,
   onOverlayUpdate, isOverlayLocked = false
@@ -494,8 +494,8 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
   }
 
   // Grid Dimensions
-  const gridContentWidth = columns * CELL_WIDTH + (mode === 'peyote' && peyoteOffset === 'rows' ? CELL_WIDTH/2 : 0);
-  const gridContentHeight = rows * CELL_HEIGHT + (mode === 'peyote' && peyoteOffset === 'columns' ? CELL_HEIGHT/2 : 0);
+  const gridContentWidth = columns * CELL_WIDTH + (mode === 'brick' ? CELL_WIDTH/2 : 0);
+  const gridContentHeight = rows * CELL_HEIGHT + (mode === 'peyote' ? CELL_HEIGHT/2 : 0);
 
   return (
     <div 
@@ -601,13 +601,11 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                         let left = c * CELL_WIDTH;
                         let top = 0;
 
-                        // Apply Peyote offset based on direction
-                        if (mode === 'peyote') {
-                            if (peyoteOffset === 'columns' && c % 2 !== 0) {
-                                top += CELL_HEIGHT / 2; // Vertical offset for odd columns
-                            } else if (peyoteOffset === 'rows' && r % 2 !== 0) {
-                                left += CELL_WIDTH / 2; // Horizontal offset for odd rows
-                            }
+                        // Apply stitch offset
+                        if (mode === 'peyote' && c % stitchStep !== 0) {
+                            top += CELL_HEIGHT / 2;
+                        } else if (mode === 'brick' && r % stitchStep !== 0) {
+                            left += CELL_WIDTH / 2;
                         }
 
                         return (
@@ -657,13 +655,11 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                              let left = targetC * CELL_WIDTH;
                              let top = targetR * CELL_HEIGHT;
 
-                             // Apply Peyote offset for paste ghost
-                             if (mode === 'peyote') {
-                                 if (peyoteOffset === 'columns' && Math.abs(targetC) % 2 === 1) {
-                                     top += CELL_HEIGHT / 2;
-                                 } else if (peyoteOffset === 'rows' && Math.abs(targetR) % 2 === 1) {
-                                     left += CELL_WIDTH / 2;
-                                 }
+                             // Apply stitch offset for paste ghost
+                             if (mode === 'peyote' && Math.abs(targetC) % stitchStep !== 0) {
+                                 top += CELL_HEIGHT / 2;
+                             } else if (mode === 'brick' && Math.abs(targetR) % stitchStep !== 0) {
+                                 left += CELL_WIDTH / 2;
                              }
 
                              return (
@@ -686,8 +682,8 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                         style={{
                             top: Math.min(selection.r1, selection.r2) * CELL_HEIGHT,
                             left: Math.min(selection.c1, selection.c2) * CELL_WIDTH,
-                            height: (Math.abs(selection.r2 - selection.r1) + 1) * CELL_HEIGHT + (mode === 'peyote' && peyoteOffset === 'columns' ? CELL_HEIGHT/2 : 0),
-                            width: (Math.abs(selection.c2 - selection.c1) + 1) * CELL_WIDTH + (mode === 'peyote' && peyoteOffset === 'rows' ? CELL_WIDTH/2 : 0)
+                            height: (Math.abs(selection.r2 - selection.r1) + 1) * CELL_HEIGHT + (mode === 'peyote' ? CELL_HEIGHT/2 : 0),
+                            width: (Math.abs(selection.c2 - selection.c1) + 1) * CELL_WIDTH + (mode === 'brick' ? CELL_WIDTH/2 : 0)
                         }}
                     />
                 )}

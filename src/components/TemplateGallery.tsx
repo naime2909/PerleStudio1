@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Template, TEMPLATES, getCategories } from '../templates';
-import { BeadType, PatternGrid } from '../types';
+import { BeadType, PatternGrid, StitchType } from '../types';
 import { Sparkles, Search, Filter, Heart, Leaf, Shapes, Star, Type, Copy, X } from 'lucide-react';
 
 interface TemplateGalleryProps {
   beadTypes: BeadType[];
-  onApplyTemplate: (grid: PatternGrid, rows: number, columns: number, mode: 'loom' | 'peyote') => void;
+  onApplyTemplate: (grid: PatternGrid, rows: number, columns: number, mode: StitchType) => void;
 }
 
 const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTemplate }) => {
@@ -356,7 +356,7 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTem
               {/* Horizontal Repeat */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Répétitions horizontales (largeur du bracelet)
+                  Répétitions horizontales (largeur du motif)
                 </label>
                 <div className="flex items-center gap-3">
                   <input
@@ -384,7 +384,7 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTem
               {/* Vertical Repeat */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  Répétitions verticales (longueur du bracelet)
+                  Répétitions verticales (longueur du motif)
                 </label>
                 <div className="flex items-center gap-3">
                   <input

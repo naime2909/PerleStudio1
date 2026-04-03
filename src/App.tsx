@@ -1,11 +1,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { BeadType, BraceletSettings, ProjectState, PatternMode, PeyoteOffset, ToolMode, OverlayImage, PatternGrid, SelectionArea, ClipboardData, MaterialType } from './types';
+import { BeadType, ProjectSettings, ProjectState, StitchType, ProjectShape, ToolMode, OverlayImage, PatternGrid, SelectionArea, ClipboardData, MaterialType } from './types';
 import { DEFAULT_BEADS, WRIST_SIZES, BEAD_SIZES, EDITOR_CONSTANTS, PRESET_COLORS } from './constants';
 import PatternEditor from './components/PatternEditor';
 import StatsPanel from './components/StatsPanel';
 import VisualPreview from './components/VisualPreview';
-import AIGenerator from './components/AIGenerator';
 import ProjectsPanel from './components/ProjectsPanel';
 import SettingsPanel from './components/SettingsPanel';
 import TemplateGallery from './components/TemplateGallery';
@@ -19,7 +18,8 @@ const App: React.FC = () => {
   // -- History & Project State --
   const [history, setHistory] = useState<ProjectState[]>([{
     mode: 'loom',
-    peyoteOffset: 'columns',
+    stitchStep: 2,
+    shape: 'bracelet',
     columns: 14,
     rows: 50,
     grid: {}
@@ -29,7 +29,7 @@ const App: React.FC = () => {
   // Derived current state
   const project = history[historyIndex];
 
-  const [settings, setSettings] = useState<BraceletSettings>({
+  const [settings, setSettings] = useState<ProjectSettings>({
     wristSizeCm: 16,
     beadSizeMm: 1.6,
   });
@@ -50,7 +50,6 @@ const App: React.FC = () => {
 
   // UI State
   const [showSpecs, setShowSpecs] = useState(false); // Used for modal on desktop, ignored on mobile
-  const [showAIModal, setShowAIModal] = useState(false);
   const [showPaletteModal, setShowPaletteModal] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
@@ -270,12 +269,16 @@ const App: React.FC = () => {
     });
   };
 
-  const handleModeChange = (m: PatternMode) => {
-      pushToHistory({ ...project, mode: m, peyoteOffset: project.peyoteOffset || 'columns' });
-  }
+  const handleModeChange = (m: StitchType) => {
+      pushToHistory({ ...project, mode: m });
+  };
 
-  const handlePeyoteOffsetChange = (offset: 'columns' | 'rows') => {
-      pushToHistory({ ...project, peyoteOffset: offset });
+  const handleStitchStepChange = (step: 2 | 3) => {
+      pushToHistory({ ...project, stitchStep: step });
+  };
+
+  const handleShapeChange = (shape: ProjectShape) => {
+      pushToHistory({ ...project, shape });
   };
 
   const handleJumpToHistory = (index: number) => {
@@ -315,11 +318,6 @@ const App: React.FC = () => {
       pushToHistory({ ...project, grid: newGrid });
       setShowFillEmptyModal(false);
       setFillColorId(null);
-  };
-
-  const handleAddPalette = (newBeads: BeadType[]) => {
-    setActiveBeads(prev => [...prev, ...newBeads]);
-    setShowAIModal(false);
   };
 
   const handleAddPresetToPalette = (preset: {name: string, hex: string, material: MaterialType}) => {
@@ -390,7 +388,7 @@ const App: React.FC = () => {
       const CONSTS = isMobile ? EDITOR_CONSTANTS.MOBILE : EDITOR_CONSTANTS.DESKTOP;
       
       const gridWidth = project.columns * (CONSTS.CELL_WIDTH * zoomLevel);
-      const gridHeight = project.rows * (CONSTS.CELL_HEIGHT * zoomLevel) + (project.mode === 'peyote' ? (CONSTS.CELL_HEIGHT * zoomLevel)/2 : 0);
+      const gridHeight = project.rows * (CONSTS.CELL_HEIGHT * zoomLevel) + (project.mode === 'peyote' || project.mode === 'brick' ? (CONSTS.CELL_HEIGHT * zoomLevel)/2 : 0);
       
       const imgWidth = overlay.width * overlay.scale;
       const imgHeight = overlay.height * overlay.scale;
@@ -540,9 +538,22 @@ const App: React.FC = () => {
     }
   };
 
+  // Migrate old project format to new one
+  const migrateProject = (p: any): ProjectState => {
+    const migrated = { ...p };
+    // Old peyote+rows => brick
+    if (migrated.mode === 'peyote' && migrated.peyoteOffset === 'rows') {
+      migrated.mode = 'brick';
+    }
+    delete migrated.peyoteOffset;
+    if (!migrated.shape) migrated.shape = 'bracelet';
+    if (!migrated.stitchStep) migrated.stitchStep = 2;
+    return migrated as ProjectState;
+  };
+
   // Handlers for tabs
   const handleLoadProject = (loadedProject: ProjectState, name: string) => {
-    setHistory([loadedProject]);
+    setHistory([migrateProject(loadedProject)]);
     setHistoryIndex(0);
     setProjectName(name);
     setActiveTab('editor');
@@ -553,7 +564,8 @@ const App: React.FC = () => {
       storage.saveCurrentProject(project, projectName);
       setHistory([{
         mode: 'loom',
-        peyoteOffset: 'columns',
+        stitchStep: 2,
+        shape: 'bracelet',
         columns: 14,
         rows: 50,
         grid: {}
@@ -590,7 +602,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const saved = storage.loadCurrentProject();
     if (saved && confirm(`Charger le projet "${saved.name}" ?`)) {
-      setHistory([saved.project]);
+      setHistory([migrateProject(saved.project)]);
       setHistoryIndex(0);
       setProjectName(saved.name);
     }
@@ -708,47 +720,65 @@ const App: React.FC = () => {
 
             <div className="flex-1 overflow-y-auto scrollbar-thin">
                 
-                {/* 1. CONFIGURATION DU BRACELET (Moved from top bar) */}
+                {/* 1. CONFIGURATION DU PROJET */}
                 <div className="p-3 border-b border-slate-100 bg-slate-50/50">
                     <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Configuration</p>
-                    
-                    {/* Mode Selector */}
+
+                    {/* Shape Selector */}
+                    <div className="mb-3">
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Forme du projet</label>
+                        <select
+                            value={project.shape || 'bracelet'}
+                            onChange={(e) => handleShapeChange(e.target.value as ProjectShape)}
+                            className="w-full bg-white border border-slate-200 rounded-lg text-xs font-semibold p-1.5 focus:ring-1 focus:ring-indigo-500 outline-none text-slate-700"
+                        >
+                            <option value="bracelet">Bracelet</option>
+                            <option value="square">Carré</option>
+                            <option value="rectangle">Rectangle</option>
+                            <option value="circle">Rond</option>
+                            <option value="freeform">Libre</option>
+                        </select>
+                    </div>
+
+                    {/* Stitch Mode Selector */}
                     <div className="space-y-2 mb-3">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase">Type de tissage</label>
                         <div className="flex bg-white border border-slate-200 rounded-lg p-1">
                             <button onClick={() => handleModeChange('loom')} className={`flex-1 py-1.5 text-xs font-bold rounded transition-colors ${project.mode === 'loom' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}>Loom</button>
                             <button onClick={() => handleModeChange('peyote')} className={`flex-1 py-1.5 text-xs font-bold rounded transition-colors ${project.mode === 'peyote' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}>Peyote</button>
+                            <button onClick={() => handleModeChange('brick')} className={`flex-1 py-1.5 text-xs font-bold rounded transition-colors ${project.mode === 'brick' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}>Brick</button>
                         </div>
 
-                        {/* Peyote Options */}
-                        {project.mode === 'peyote' && (
+                        {/* Stitch Step Options (Peyote or Brick only) */}
+                        {(project.mode === 'peyote' || project.mode === 'brick') && (
                             <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-2">
-                                <label className="block text-[10px] font-bold text-indigo-900 mb-1">Direction du décalage:</label>
+                                <label className="block text-[10px] font-bold text-indigo-900 mb-1">Point de décalage:</label>
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={() => handlePeyoteOffsetChange('columns')}
+                                        onClick={() => handleStitchStepChange(2)}
                                         className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded transition-colors ${
-                                            (project.peyoteOffset || 'columns') === 'columns'
+                                            (project.stitchStep || 2) === 2
                                                 ? 'bg-indigo-600 text-white shadow-sm'
                                                 : 'bg-white text-indigo-700 hover:bg-indigo-100'
                                         }`}
                                     >
-                                        ↕️ Colonnes
+                                        1 sur 2
                                     </button>
                                     <button
-                                        onClick={() => handlePeyoteOffsetChange('rows')}
+                                        onClick={() => handleStitchStepChange(3)}
                                         className={`flex-1 py-1.5 px-2 text-xs font-semibold rounded transition-colors ${
-                                            project.peyoteOffset === 'rows'
+                                            project.stitchStep === 3
                                                 ? 'bg-indigo-600 text-white shadow-sm'
                                                 : 'bg-white text-indigo-700 hover:bg-indigo-100'
                                         }`}
                                     >
-                                        ↔️ Lignes
+                                        1 sur 3
                                     </button>
                                 </div>
                                 <p className="text-[9px] text-indigo-700 mt-1">
-                                    {(project.peyoteOffset || 'columns') === 'columns'
-                                        ? '↕️ Décale les colonnes impaires vers le bas'
-                                        : '↔️ Décale les lignes impaires vers la droite'}
+                                    {project.mode === 'peyote'
+                                        ? `Décale 1 colonne sur ${project.stitchStep || 2} vers le bas`
+                                        : `Décale 1 ligne sur ${project.stitchStep || 2} vers la droite`}
                                 </p>
                             </div>
                         )}
@@ -1024,14 +1054,6 @@ const App: React.FC = () => {
 
                     {/* --- HORIZONTAL PALETTE BAR --- */}
                     <div className="h-16 shrink-0 bg-white border-b border-slate-200 flex items-center px-4 overflow-x-auto gap-3 scrollbar-thin">
-                        <div className="flex items-center justify-center shrink-0 border-r border-slate-100 pr-3">
-                           <button onClick={() => setShowAIModal(true)} className="flex flex-col items-center gap-0.5 text-[9px] font-bold text-slate-500 hover:text-indigo-600">
-                               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white shadow-sm">
-                                   <Sparkles size={16}/>
-                               </div>
-                               <span>IA</span>
-                           </button>
-                        </div>
                         
                         {activeBeads.map(bead => (
                             <button 
@@ -1063,7 +1085,7 @@ const App: React.FC = () => {
                     <div className="flex-1 relative min-h-0">
                         <PatternEditor
                             mode={project.mode}
-                            peyoteOffset={project.peyoteOffset}
+                            stitchStep={project.stitchStep}
                             columns={project.columns}
                             rows={project.rows}
                             grid={project.grid}
@@ -1290,16 +1312,6 @@ const App: React.FC = () => {
                                   Ajouter cette couleur
                               </button>
                           </div>
-                          <div className="w-px h-20 bg-slate-200 hidden sm:block"></div>
-                          <div className="flex-1 w-full flex flex-col justify-center">
-                              <p className="text-xs text-slate-500 mb-2">Besoin d'inspiration ?</p>
-                              <button 
-                                onClick={() => { setShowPaletteModal(false); setShowAIModal(true); }}
-                                className="w-full flex items-center justify-center gap-2 py-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white rounded text-xs font-bold hover:opacity-90 transition-opacity"
-                              >
-                                  <Sparkles size={14}/> Utiliser l'Assistant IA
-                              </button>
-                          </div>
                       </div>
 
                   </div>
@@ -1307,24 +1319,6 @@ const App: React.FC = () => {
           </div>
       )}
 
-      {/* AI Modal */}
-      {showAIModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full">
-                <div className="flex justify-between items-center p-4 border-b border-slate-100">
-                    <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                        <Sparkles size={20} className="text-indigo-600"/> Assistant Créatif
-                    </h3>
-                    <button onClick={() => setShowAIModal(false)} className="p-1 hover:bg-slate-100 rounded-full text-slate-400">
-                        <X size={20}/>
-                    </button>
-                </div>
-                <div className="p-4">
-                    <AIGenerator onAddBeadsToPalette={handleAddPalette} />
-                </div>
-            </div>
-        </div>
-      )}
 
       {/* HISTORY PANEL MODAL */}
       {showHistoryPanel && (
@@ -1367,10 +1361,10 @@ const App: React.FC = () => {
                         )}
                       </div>
                       <div className="text-xs text-slate-600 space-y-0.5">
-                        <div>📐 {state.columns}×{state.rows} • {state.mode === 'loom' ? 'Loom' : 'Peyote'}</div>
+                        <div>📐 {state.columns}×{state.rows} • {state.mode === 'loom' ? 'Loom' : state.mode === 'peyote' ? 'Peyote' : 'Brick'}</div>
                         <div>🎨 {Object.keys(state.grid).length} perles placées</div>
-                        {state.mode === 'peyote' && (
-                          <div>↕️ Décalage: {state.peyoteOffset === 'rows' ? 'Lignes' : 'Colonnes'}</div>
+                        {state.mode !== 'loom' && (
+                          <div>↕️ Point: 1/{state.stitchStep || 2}</div>
                         )}
                       </div>
                     </button>

@@ -4,7 +4,7 @@ import { Settings, Info, Heart, Github, Mail } from 'lucide-react';
 const SettingsPanel: React.FC = () => {
   const clearAllData = () => {
     if (confirm('Supprimer TOUS les projets sauvegardés ?\n\nCette action est irréversible !')) {
-      if (confirm('Êtes-vous vraiment sûr(e) ? Tous vos bracelets seront perdus !')) {
+      if (confirm('Êtes-vous vraiment sûr(e) ? Tous vos projets seront perdus !')) {
         localStorage.clear();
         alert('Toutes les données ont été supprimées. Rechargez la page.');
       }
@@ -73,7 +73,7 @@ const SettingsPanel: React.FC = () => {
           <ul className="space-y-2 text-sm text-slate-600">
             <li className="flex items-center gap-2">
               <span className="text-green-500">✓</span>
-              Éditeur de motifs Loom & Peyote
+              Éditeur de motifs Loom, Peyote & Brick
             </li>
             <li className="flex items-center gap-2">
               <span className="text-green-500">✓</span>

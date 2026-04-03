@@ -9,9 +9,9 @@ interface VisualPreviewProps {
 }
 
 const VisualPreview: React.FC<VisualPreviewProps> = ({ project, beadTypes, orientation = 'vertical' }) => {
-  const { rows, columns: cols, mode, peyoteOffset = 'columns', grid } = project;
+  const { rows, columns: cols, mode, stitchStep = 2, grid } = project;
   const isHorizontal = orientation === 'horizontal';
-  
+
   // Dimensions virtuelles pour le dessin vectoriel
   // Perles Miyuki Delica physiques: 1.6mm (W) x 1.3mm (H) = ratio 1.23:1
   // Ajusté pour correspondre aux proportions réelles des perles
@@ -21,15 +21,15 @@ const VisualPreview: React.FC<VisualPreviewProps> = ({ project, beadTypes, orien
   // Taille du rectangle SVG pour une perle
   const beadRectW = isHorizontal ? BEAD_H_BASE : BEAD_W_BASE;
   const beadRectH = isHorizontal ? BEAD_W_BASE : BEAD_H_BASE;
-  
+
   // Calcul de la taille totale du dessin (ViewBox)
   const totalWidth = isHorizontal
-    ? rows * BEAD_H_BASE + (mode === 'peyote' && peyoteOffset === 'columns' ? BEAD_H_BASE / 2 : 0)
-    : cols * BEAD_W_BASE + (mode === 'peyote' && peyoteOffset === 'rows' ? BEAD_W_BASE / 2 : 0);
+    ? rows * BEAD_H_BASE + (mode === 'peyote' ? BEAD_H_BASE / 2 : 0)
+    : cols * BEAD_W_BASE + (mode === 'brick' ? BEAD_W_BASE / 2 : 0);
 
   const totalHeight = isHorizontal
-    ? cols * BEAD_W_BASE + (mode === 'peyote' && peyoteOffset === 'rows' ? BEAD_W_BASE / 2 : 0)
-    : rows * BEAD_H_BASE + (mode === 'peyote' && peyoteOffset === 'columns' ? BEAD_H_BASE / 2 : 0);
+    ? cols * BEAD_W_BASE + (mode === 'brick' ? BEAD_W_BASE / 2 : 0)
+    : rows * BEAD_H_BASE + (mode === 'peyote' ? BEAD_H_BASE / 2 : 0);
 
   return (
     <div className={`bg-white rounded-xl shadow-sm border border-slate-200 flex ${isHorizontal ? 'flex-row h-full w-full' : 'flex-col h-[400px]'} items-center p-3 overflow-hidden`}>
@@ -37,15 +37,15 @@ const VisualPreview: React.FC<VisualPreviewProps> = ({ project, beadTypes, orien
         <Eye size={20} className="text-indigo-600" />
         {isHorizontal ? "Aperçu" : "Aperçu Global"}
       </h3>
-      
+
       <div className="flex-1 w-full h-full bg-slate-100 rounded-lg p-2 shadow-inner relative flex items-center justify-center overflow-hidden">
         {Object.keys(grid).length === 0 ? (
           <div className="text-center text-slate-400 text-xs">
             <p>Dessinez pour voir le résultat</p>
           </div>
         ) : (
-            <svg 
-                viewBox={`0 0 ${totalWidth} ${totalHeight}`} 
+            <svg
+                viewBox={`0 0 ${totalWidth} ${totalHeight}`}
                 className="max-w-full max-h-full drop-shadow-xl transition-all duration-500"
                 preserveAspectRatio="xMidYMid meet"
             >
@@ -70,32 +70,24 @@ const VisualPreview: React.FC<VisualPreviewProps> = ({ project, beadTypes, orien
                     Array.from({ length: cols }).map((_, c) => {
                         const beadId = grid[`${r}-${c}`];
                         const bead = beadTypes.find(b => b.id === beadId);
-                        
+
                         let x, y;
 
                         if (isHorizontal) {
-                            // Axe X = Rangs (Longueur), Axe Y = Colonnes (Largeur)
                             x = r * BEAD_H_BASE;
                             y = c * BEAD_W_BASE;
-                            // Décalage Peyote - horizontal: offset columns, vertical: offset rows
-                            if (mode === 'peyote') {
-                                if (peyoteOffset === 'columns' && c % 2 !== 0) {
-                                    x += BEAD_H_BASE / 2;
-                                } else if (peyoteOffset === 'rows' && r % 2 !== 0) {
-                                    y += BEAD_W_BASE / 2;
-                                }
+                            if (mode === 'peyote' && c % stitchStep !== 0) {
+                                x += BEAD_H_BASE / 2;
+                            } else if (mode === 'brick' && r % stitchStep !== 0) {
+                                y += BEAD_W_BASE / 2;
                             }
                         } else {
-                            // Standard Vertical
                             x = c * BEAD_W_BASE;
                             y = r * BEAD_H_BASE;
-                            // Décalage Peyote - columns: vertical offset, rows: horizontal offset
-                            if (mode === 'peyote') {
-                                if (peyoteOffset === 'columns' && c % 2 !== 0) {
-                                    y += BEAD_H_BASE / 2;
-                                } else if (peyoteOffset === 'rows' && r % 2 !== 0) {
-                                    x += BEAD_W_BASE / 2;
-                                }
+                            if (mode === 'peyote' && c % stitchStep !== 0) {
+                                y += BEAD_H_BASE / 2;
+                            } else if (mode === 'brick' && r % stitchStep !== 0) {
+                                x += BEAD_W_BASE / 2;
                             }
                         }
 
@@ -106,8 +98,8 @@ const VisualPreview: React.FC<VisualPreviewProps> = ({ project, beadTypes, orien
                                 y={y}
                                 width={beadRectW}
                                 height={beadRectH}
-                                rx={isHorizontal ? 0.8 : 1.5} 
-                                fill={bead ? bead.hex : '#e2e8f0'} 
+                                rx={isHorizontal ? 0.8 : 1.5}
+                                fill={bead ? bead.hex : '#e2e8f0'}
                                 fillOpacity={bead ? 1 : 0.3}
                                 stroke={bead ? 'rgba(0,0,0,0.1)' : 'none'}
                                 strokeWidth={0.5}

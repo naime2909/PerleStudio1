@@ -103,7 +103,7 @@ const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProje
             <Folder size={64} className="text-slate-300 mb-4" />
             <h3 className="text-lg font-semibold text-slate-700 mb-2">Aucun projet sauvegardé</h3>
             <p className="text-sm text-slate-500 mb-4">
-              Créez votre premier bracelet et il sera automatiquement sauvegardé !
+              Créez votre premier projet et il sera automatiquement sauvegardé !
             </p>
             <button
               onClick={onNewProject}

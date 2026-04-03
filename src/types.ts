@@ -15,18 +15,24 @@ export interface BeadType {
   hex: string;
 }
 
-export type PatternMode = 'loom' | 'peyote';
+// Stitch types: loom (no offset), peyote (vertical offset on columns), brick (horizontal offset on rows)
+export type StitchType = 'loom' | 'peyote' | 'brick';
 
-export type PeyoteOffset = 'columns' | 'rows'; // Direction du décalage en Peyote
+// Backward compatibility alias
+export type PatternMode = StitchType;
+
+// Project shape: what the user is creating
+export type ProjectShape = 'bracelet' | 'square' | 'rectangle' | 'circle' | 'freeform';
 
 // Clé de la grille : "row-col", Valeur : beadId
 export type PatternGrid = Record<string, string>;
 
 export interface ProjectState {
-  mode: PatternMode;
-  peyoteOffset?: PeyoteOffset; // 'columns' = vertical (défaut), 'rows' = horizontal
-  columns: number; // Largeur du bracelet en nombre de perles
-  rows: number;    // Longueur du bracelet en nombre de perles
+  mode: StitchType;
+  stitchStep?: 2 | 3;       // Offset every N columns/rows (default 2)
+  shape?: ProjectShape;      // Project shape (default 'bracelet' for backward compat)
+  columns: number;           // Largeur en nombre de perles
+  rows: number;              // Longueur en nombre de perles
   grid: PatternGrid;
 }
 
@@ -42,20 +48,13 @@ export interface OverlayImage {
   layer: 'front' | 'back';
 }
 
-export interface BraceletSettings {
+export interface ProjectSettings {
   beadSizeMm: number; // Hauteur/Largeur approximative
   wristSizeCm: number;
 }
 
-export interface AIResponseSchema {
-  paletteName: string;
-  description: string;
-  colors: {
-    name: string;
-    hex: string;
-    suggestion: string;
-  }[];
-}
+// Backward compatibility alias
+export type BraceletSettings = ProjectSettings;
 
 export type ToolMode = 'pencil' | 'eraser' | 'rectangle' | 'circle' | 'move' | 'polygon' | 'select' | 'paste';
 
