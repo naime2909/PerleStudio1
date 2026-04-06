@@ -745,7 +745,8 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                             className={`absolute border border-slate-50/50 box-border rounded-sm ${toolMode !== 'move' && toolMode !== 'select' && toolMode !== 'paste' ? 'hover:border-indigo-300' : ''}`}
                             style={{
                                 left: left, top: top, width: CELL_WIDTH, height: CELL_HEIGHT,
-                                zIndex: isGhost || isPolygonVertex ? 30 : 10
+                                zIndex: isGhost || isPolygonVertex ? 30 : 10,
+                                cursor: (toolMode === 'select' && selection && isInsideSelection(r, c) && !isDragging) ? 'move' : undefined,
                             }}
                             onMouseDown={(e) => handleCellMouseDown(e, r, c)}
                             onMouseEnter={() => handleCellMouseEnter(r, c)}
@@ -808,35 +809,12 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                 {/* Selection Overlay */}
                 {selection && (
                     <div
-                        className={`absolute border-2 border-indigo-500 bg-indigo-500/10 z-50 border-dashed ${isDraggingSelection ? 'opacity-60' : ''}`}
+                        className={`absolute border-2 border-indigo-500 bg-indigo-500/10 pointer-events-none z-50 border-dashed ${isDraggingSelection ? 'opacity-50' : ''}`}
                         style={{
                             top: (Math.min(selection.r1, selection.r2) + (isDraggingSelection ? selDragOffset.dr : 0)) * CELL_HEIGHT,
                             left: (Math.min(selection.c1, selection.c2) + (isDraggingSelection ? selDragOffset.dc : 0)) * CELL_WIDTH,
                             height: (Math.abs(selection.r2 - selection.r1) + 1) * CELL_HEIGHT + (mode === 'peyote' ? CELL_HEIGHT/2 : 0),
                             width: (Math.abs(selection.c2 - selection.c1) + 1) * CELL_WIDTH + (mode === 'brick' ? CELL_WIDTH/2 : 0),
-                            cursor: toolMode === 'select' && !isDragging ? 'move' : 'default',
-                            pointerEvents: toolMode === 'select' && !isDragging ? 'auto' : 'none',
-                        }}
-                        onMouseDown={(e) => {
-                          if (toolMode === 'select') {
-                            e.stopPropagation();
-                            const rect = (e.target as HTMLElement).closest('[data-grid-container]')?.getBoundingClientRect();
-                            // Start drag from overlay directly
-                            const minR = Math.min(selection.r1, selection.r2);
-                            const minC = Math.min(selection.c1, selection.c2);
-                            setIsDraggingSelection(true);
-                            // Approximate cell from click position
-                            if (rect) {
-                              const relX = e.clientX - rect.left;
-                              const relY = e.clientY - rect.top;
-                              const clickR = Math.floor(relY / CELL_HEIGHT);
-                              const clickC = Math.floor(relX / CELL_WIDTH);
-                              setSelDragStart({r: clickR, c: clickC});
-                            } else {
-                              setSelDragStart({r: minR, c: minC});
-                            }
-                            setSelDragOffset({dr: 0, dc: 0});
-                          }
                         }}
                     />
                 )}
