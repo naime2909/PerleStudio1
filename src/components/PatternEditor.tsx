@@ -23,6 +23,7 @@ interface PatternEditorProps {
   clipboard?: ClipboardData | null;
   onPaste?: (pos: {r: number, c: number}) => void;
   onUpdateGrid: (updates: {r: number, c: number, beadId: string | null}[]) => void;
+  onMoveSelection?: (fromSel: SelectionArea, deltaR: number, deltaC: number) => void;
   onFillRow: (row: number) => void;
   onFillCol: (col: number) => void;
   onOverlayUpdate?: (overlay: OverlayImage) => void;
@@ -33,7 +34,7 @@ interface PatternEditorProps {
 const PatternEditor: React.FC<PatternEditorProps> = ({
   mode, stitchStep = 2, shape = 'bracelet', columns, rows, grid, beadTypes, selectedBeadId, toolMode, isFilled = true, overlay, zoomLevel = 1,
   selection, onSelectionChange, clipboard, onPaste,
-  onUpdateGrid, onFillRow, onFillCol,
+  onUpdateGrid, onMoveSelection, onFillRow, onFillCol,
   onOverlayUpdate, isOverlayLocked = false,
   onZoomChange
 }) => {
@@ -49,6 +50,11 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
   const [isPanning, setIsPanning] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [panStart, setPanStart] = useState({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
+
+  // State for dragging selection (move selected beads)
+  const [isDraggingSelection, setIsDraggingSelection] = useState(false);
+  const [selDragStart, setSelDragStart] = useState<{r: number, c: number} | null>(null);
+  const [selDragOffset, setSelDragOffset] = useState<{dr: number, dc: number}>({dr: 0, dc: 0});
 
   // State for dragging overlay image
   const [isDraggingOverlay, setIsDraggingOverlay] = useState(false);
@@ -299,6 +305,16 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
       return pixels;
   };
 
+  // --- Selection Helpers ---
+  const isInsideSelection = (r: number, c: number): boolean => {
+    if (!selection) return false;
+    const minR = Math.min(selection.r1, selection.r2);
+    const maxR = Math.max(selection.r1, selection.r2);
+    const minC = Math.min(selection.c1, selection.c2);
+    const maxC = Math.max(selection.c1, selection.c2);
+    return r >= minR && r <= maxR && c >= minC && c <= maxC;
+  };
+
   // --- Handlers ---
 
   const handleCellMouseDown = (e: React.MouseEvent, r: number, c: number) => {
@@ -326,11 +342,19 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
         return;
     }
 
+    // Selection drag: if clicking inside existing selection, start moving it
+    if (toolMode === 'select' && selection && isInsideSelection(r, c)) {
+        setIsDraggingSelection(true);
+        setSelDragStart({r, c});
+        setSelDragOffset({dr: 0, dc: 0});
+        return;
+    }
+
     // Drag Logic
     setIsDragging(true);
     setStartPos({r, c});
     setCurrentPos({r, c});
-    
+
     // Clear selection if starting a new one
     if (toolMode === 'select' && onSelectionChange) {
         onSelectionChange({r1: r, c1: c, r2: r, c2: c});
@@ -344,6 +368,15 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
   };
 
   const handleCellMouseEnter = (r: number, c: number) => {
+    // Selection drag move
+    if (isDraggingSelection && selDragStart) {
+        setSelDragOffset({
+          dr: r - selDragStart.r,
+          dc: c - selDragStart.c,
+        });
+        return;
+    }
+
     // Paste Preview
     if (toolMode === 'paste') {
         setCurrentPos({r, c});
@@ -372,6 +405,25 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
   };
 
   const handleGlobalMouseUp = () => {
+    // Apply selection move
+    if (isDraggingSelection && selection && (selDragOffset.dr !== 0 || selDragOffset.dc !== 0)) {
+        if (onMoveSelection) {
+            onMoveSelection(selection, selDragOffset.dr, selDragOffset.dc);
+        }
+        // Update selection position
+        if (onSelectionChange) {
+            onSelectionChange({
+              r1: selection.r1 + selDragOffset.dr,
+              c1: selection.c1 + selDragOffset.dc,
+              r2: selection.r2 + selDragOffset.dr,
+              c2: selection.c2 + selDragOffset.dc,
+            });
+        }
+    }
+    setIsDraggingSelection(false);
+    setSelDragStart(null);
+    setSelDragOffset({dr: 0, dc: 0});
+
     if (isDragging) {
         if ((toolMode === 'rectangle' || toolMode === 'circle') && startPos && currentPos) {
             const pixels = getShapePixels(startPos.r, startPos.c, currentPos.r, currentPos.c, toolMode, isFilled);
@@ -403,11 +455,19 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
         return;
     }
 
+    // Selection drag on touch
+    if (toolMode === 'select' && selection && isInsideSelection(r, c)) {
+        setIsDraggingSelection(true);
+        setSelDragStart({r, c});
+        setSelDragOffset({dr: 0, dc: 0});
+        return;
+    }
+
     // Drag Logic for shapes and selection
     setIsDragging(true);
     setStartPos({r, c});
     setCurrentPos({r, c});
-    
+
     // Clear selection if starting a new one
     if (toolMode === 'select' && onSelectionChange) {
         onSelectionChange({r1: r, c1: c, r2: r, c2: c});
@@ -435,15 +495,26 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
   };
 
   const handleCellTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging || toolMode === 'polygon' || toolMode === 'move') return;
-    e.preventDefault();
-    
+    if (toolMode === 'polygon' || toolMode === 'move') return;
+
     const touch = e.touches[0];
     const cell = getCellFromTouch(touch);
-    
     if (!cell) return;
     const {r, c} = cell;
-    
+
+    // Selection drag move (touch)
+    if (isDraggingSelection && selDragStart) {
+        e.preventDefault();
+        setSelDragOffset({
+          dr: r - selDragStart.r,
+          dc: c - selDragStart.c,
+        });
+        return;
+    }
+
+    if (!isDragging) return;
+    e.preventDefault();
+
     setCurrentPos({r, c});
 
     // Update selection drag
@@ -459,6 +530,24 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
   };
 
   const handleGlobalTouchEnd = () => {
+    // Apply selection move (touch)
+    if (isDraggingSelection && selection && (selDragOffset.dr !== 0 || selDragOffset.dc !== 0)) {
+        if (onMoveSelection) {
+            onMoveSelection(selection, selDragOffset.dr, selDragOffset.dc);
+        }
+        if (onSelectionChange) {
+            onSelectionChange({
+              r1: selection.r1 + selDragOffset.dr,
+              c1: selection.c1 + selDragOffset.dc,
+              r2: selection.r2 + selDragOffset.dr,
+              c2: selection.c2 + selDragOffset.dc,
+            });
+        }
+    }
+    setIsDraggingSelection(false);
+    setSelDragStart(null);
+    setSelDragOffset({dr: 0, dc: 0});
+
     if (isDragging) {
         if ((toolMode === 'rectangle' || toolMode === 'circle') && startPos && currentPos) {
             const pixels = getShapePixels(startPos.r, startPos.c, currentPos.r, currentPos.c, toolMode, isFilled);
@@ -554,6 +643,7 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
       >
         <div className="min-w-full min-h-full p-4 sm:p-8 flex items-start sm:items-center justify-center">
           <div 
+            data-grid-container
             className="relative bg-white shadow-sm border border-slate-200 select-none m-auto"
             style={{
               width: gridContentWidth + HEADER_SIZE,
@@ -718,12 +808,35 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
                 {/* Selection Overlay */}
                 {selection && (
                     <div
-                        className="absolute border-2 border-indigo-500 bg-indigo-500/10 pointer-events-none z-50 border-dashed"
+                        className={`absolute border-2 border-indigo-500 bg-indigo-500/10 z-50 border-dashed ${isDraggingSelection ? 'opacity-60' : ''}`}
                         style={{
-                            top: Math.min(selection.r1, selection.r2) * CELL_HEIGHT,
-                            left: Math.min(selection.c1, selection.c2) * CELL_WIDTH,
+                            top: (Math.min(selection.r1, selection.r2) + (isDraggingSelection ? selDragOffset.dr : 0)) * CELL_HEIGHT,
+                            left: (Math.min(selection.c1, selection.c2) + (isDraggingSelection ? selDragOffset.dc : 0)) * CELL_WIDTH,
                             height: (Math.abs(selection.r2 - selection.r1) + 1) * CELL_HEIGHT + (mode === 'peyote' ? CELL_HEIGHT/2 : 0),
-                            width: (Math.abs(selection.c2 - selection.c1) + 1) * CELL_WIDTH + (mode === 'brick' ? CELL_WIDTH/2 : 0)
+                            width: (Math.abs(selection.c2 - selection.c1) + 1) * CELL_WIDTH + (mode === 'brick' ? CELL_WIDTH/2 : 0),
+                            cursor: toolMode === 'select' && !isDragging ? 'move' : 'default',
+                            pointerEvents: toolMode === 'select' && !isDragging ? 'auto' : 'none',
+                        }}
+                        onMouseDown={(e) => {
+                          if (toolMode === 'select') {
+                            e.stopPropagation();
+                            const rect = (e.target as HTMLElement).closest('[data-grid-container]')?.getBoundingClientRect();
+                            // Start drag from overlay directly
+                            const minR = Math.min(selection.r1, selection.r2);
+                            const minC = Math.min(selection.c1, selection.c2);
+                            setIsDraggingSelection(true);
+                            // Approximate cell from click position
+                            if (rect) {
+                              const relX = e.clientX - rect.left;
+                              const relY = e.clientY - rect.top;
+                              const clickR = Math.floor(relY / CELL_HEIGHT);
+                              const clickC = Math.floor(relX / CELL_WIDTH);
+                              setSelDragStart({r: clickR, c: clickC});
+                            } else {
+                              setSelDragStart({r: minR, c: minC});
+                            }
+                            setSelDragOffset({dr: 0, dc: 0});
+                          }
                         }}
                     />
                 )}

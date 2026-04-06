@@ -1352,6 +1352,42 @@ const App: React.FC = () => {
                                     handleUpdateGrid(updates);
                                 }
                             }}
+                            onMoveSelection={(fromSel, deltaR, deltaC) => {
+                                const minR = Math.min(fromSel.r1, fromSel.r2);
+                                const maxR = Math.max(fromSel.r1, fromSel.r2);
+                                const minC = Math.min(fromSel.c1, fromSel.c2);
+                                const maxC = Math.max(fromSel.c1, fromSel.c2);
+
+                                // Collect beads in selection
+                                const beadsToMove: {r: number, c: number, beadId: string}[] = [];
+                                for (let r = minR; r <= maxR; r++) {
+                                    for (let c = minC; c <= maxC; c++) {
+                                        const beadId = project.grid[`${r}-${c}`];
+                                        if (beadId) {
+                                            beadsToMove.push({r, c, beadId});
+                                        }
+                                    }
+                                }
+
+                                // Build updates: clear old positions + place at new positions
+                                const updates: {r: number, c: number, beadId: string | null}[] = [];
+
+                                // Clear old
+                                beadsToMove.forEach(({r, c}) => {
+                                    updates.push({r, c, beadId: null});
+                                });
+
+                                // Place new
+                                beadsToMove.forEach(({r, c, beadId}) => {
+                                    const newR = r + deltaR;
+                                    const newC = c + deltaC;
+                                    if (newR >= 0 && newR < project.rows && newC >= 0 && newC < project.columns) {
+                                        updates.push({r: newR, c: newC, beadId});
+                                    }
+                                });
+
+                                handleUpdateGrid(updates);
+                            }}
                             onOverlayUpdate={handleOverlayUpdate}
                             isOverlayLocked={isOverlayLocked}
                             onZoomChange={setZoomLevel}
