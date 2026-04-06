@@ -16,21 +16,43 @@ export const useAuth = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch profile from DB
-  const fetchProfile = useCallback(async (userId: string) => {
+  // Fetch profile from DB — create if missing (e.g. trigger didn't fire)
+  const fetchProfile = useCallback(async (userId: string, userMeta?: any) => {
     if (!supabaseConfigured) return null;
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-    if (error) {
-      console.error('Error fetching profile:', error);
+      if (error && error.code === 'PGRST116') {
+        // Profile not found — create it
+        const username = userMeta?.username || userMeta?.full_name || userMeta?.name || 'user_' + userId.slice(0, 8);
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert({ id: userId, username })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Error creating profile:', insertError);
+          return null;
+        }
+        setProfile(newProfile);
+        return newProfile;
+      }
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return null;
+      }
+      setProfile(data);
+      return data;
+    } catch (err) {
+      console.error('Error in fetchProfile:', err);
       return null;
     }
-    setProfile(data);
-    return data;
   }, []);
 
   // Listen to auth changes
@@ -45,8 +67,10 @@ export const useAuth = () => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id);
+        fetchProfile(session.user.id, session.user.user_metadata);
       }
+      setLoading(false);
+    }).catch(() => {
       setLoading(false);
     });
 
@@ -56,7 +80,7 @@ export const useAuth = () => {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          await fetchProfile(session.user.id);
+          await fetchProfile(session.user.id, session.user.user_metadata);
         } else {
           setProfile(null);
         }
