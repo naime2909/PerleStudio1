@@ -13,6 +13,7 @@ import AuthModal from './components/AuthModal';
 import ProfileButton from './components/ProfileButton';
 import FriendsPanel from './components/FriendsPanel';
 import SharedProjectsPanel from './components/SharedProjectsPanel';
+import ProfilePage from './components/ProfilePage';
 import { useAuth } from './hooks/useAuth';
 import { useCloudStorage, CloudProject } from './hooks/useCloudStorage';
 import { useLocalStorage, AUTO_SAVE_INTERVAL } from './useLocalStorage';
@@ -82,7 +83,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Tab system
-  const [activeTab, setActiveTab] = useState<'editor' | 'templates' | 'convert' | 'projects' | 'friends' | 'shared' | 'settings'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'templates' | 'convert' | 'projects' | 'friends' | 'shared' | 'profile' | 'settings'>('editor');
   
   // Project name & auto-save
   const [projectName, setProjectName] = useState('Sans titre');
@@ -742,8 +743,7 @@ const App: React.FC = () => {
               profile={auth.profile}
               isLoggedIn={!!auth.user}
               onLoginClick={() => setShowAuthModal(true)}
-              onLogout={auth.signOut}
-              onUpdateUsername={auth.updateUsername}
+              onProfileClick={() => setActiveTab('profile')}
             />
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -796,6 +796,18 @@ const App: React.FC = () => {
         >
           📁 Mes Projets
         </button>
+        {auth.user && (
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`px-2 lg:px-4 py-2 lg:py-3 font-semibold text-xs lg:text-sm whitespace-nowrap border-b-2 transition-colors ${
+              activeTab === 'profile'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            👤 Profil
+          </button>
+        )}
         {auth.user && (
           <button
             onClick={() => setActiveTab('friends')}
@@ -1424,6 +1436,25 @@ const App: React.FC = () => {
           isLoggedIn={!!auth.user}
         />
       </div>
+
+      {/* PROFILE TAB */}
+      {auth.user && (
+        <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'profile' ? 'block' : 'none' }}>
+          <ProfilePage
+            profile={auth.profile}
+            userEmail={auth.user.email || ''}
+            userCreatedAt={auth.user.created_at || ''}
+            onUpdateUsername={auth.updateUsername}
+            onLogout={async () => {
+              await auth.signOut();
+              setActiveTab('editor');
+            }}
+            onProfileUpdate={(updatedProfile) => {
+              auth.fetchProfile(auth.user!.id);
+            }}
+          />
+        </div>
+      )}
 
       {/* FRIENDS TAB */}
       {auth.user && (
