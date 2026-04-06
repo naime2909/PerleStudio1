@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { User, Camera, Check, X, Edit3, Mail, Calendar, Cloud, LogOut } from 'lucide-react';
+import { User, Camera, Check, X, Edit3, Mail, Calendar, Cloud, LogOut, Image } from 'lucide-react';
 import { supabase, supabaseConfigured } from '../lib/supabase';
+import { PIXEL_AVATARS } from '../constants/avatars';
 import type { Profile } from '../hooks/useAuth';
 
 interface ProfilePageProps {
@@ -25,6 +26,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   const [nameError, setNameError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSaveUsername = async () => {
@@ -104,6 +106,28 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     }
   };
 
+  const handleSelectAvatar = async (avatarSvg: string) => {
+    if (!profile || !supabaseConfigured) return;
+    setUploading(true);
+    setUploadError('');
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ avatar_url: avatarSvg })
+        .eq('id', profile.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      onProfileUpdate(data);
+      setShowAvatarPicker(false);
+    } catch (err: any) {
+      setUploadError(err?.message || 'Erreur');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('fr-FR', {
       year: 'numeric',
@@ -138,6 +162,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                     src={profile.avatar_url}
                     alt={profile.username}
                     className="w-full h-full object-cover"
+                    style={{ imageRendering: profile.avatar_url.startsWith('data:image/svg') ? 'pixelated' : 'auto' }}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-400 to-purple-400">
@@ -146,10 +171,10 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                 )}
               </div>
               <button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => setShowAvatarPicker(!showAvatarPicker)}
                 disabled={uploading}
                 className="absolute bottom-0 right-0 p-2 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                title="Changer la photo"
+                title="Changer l'avatar"
               >
                 {uploading ? (
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -169,6 +194,48 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
               <p className="text-xs text-red-500 mt-2">{uploadError}</p>
             )}
           </div>
+
+          {/* Avatar Picker */}
+          {showAvatarPicker && (
+            <div className="px-6 py-4 border-t border-slate-100">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                  <Image size={16} className="text-indigo-600" />
+                  Choisis ton avatar
+                </h3>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs text-indigo-600 font-semibold hover:underline flex items-center gap-1"
+                >
+                  <Camera size={12} /> Importer une photo
+                </button>
+              </div>
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                {PIXEL_AVATARS.map(avatar => (
+                  <button
+                    key={avatar.id}
+                    onClick={() => handleSelectAvatar(avatar.svg)}
+                    className={`relative group aspect-square rounded-xl border-2 overflow-hidden transition-all hover:scale-105 hover:shadow-md ${
+                      profile.avatar_url === avatar.svg
+                        ? 'border-indigo-600 ring-2 ring-indigo-300'
+                        : 'border-slate-200 hover:border-indigo-400'
+                    }`}
+                    title={avatar.name}
+                  >
+                    <img
+                      src={avatar.svg}
+                      alt={avatar.name}
+                      className="w-full h-full"
+                      style={{ imageRendering: 'pixelated' }}
+                    />
+                    <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] font-bold text-center py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {avatar.name}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Username */}
           <div className="px-6 py-4">
