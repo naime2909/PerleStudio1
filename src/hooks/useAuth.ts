@@ -69,6 +69,7 @@ export const useAuth = () => {
 
   // Sign up with email
   const signUp = async (email: string, password: string, username: string) => {
+    if (!supabaseConfigured) throw new Error('Service non disponible');
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -82,6 +83,7 @@ export const useAuth = () => {
 
   // Sign in with email
   const signIn = async (email: string, password: string) => {
+    if (!supabaseConfigured) throw new Error('Service non disponible');
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -92,6 +94,7 @@ export const useAuth = () => {
 
   // Sign in with Google
   const signInWithGoogle = async () => {
+    if (!supabaseConfigured) throw new Error('Service non disponible');
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -104,6 +107,7 @@ export const useAuth = () => {
 
   // Sign out
   const signOut = async () => {
+    if (!supabaseConfigured) return;
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     setUser(null);
@@ -113,6 +117,7 @@ export const useAuth = () => {
 
   // Update username
   const updateUsername = async (newUsername: string) => {
+    if (!supabaseConfigured) throw new Error('Service non disponible');
     if (!user) throw new Error('Not logged in');
 
     const { data, error } = await supabase
