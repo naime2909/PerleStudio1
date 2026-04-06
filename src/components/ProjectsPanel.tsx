@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
 import { SavedProject, useLocalStorage } from '../useLocalStorage';
-import { Folder, Trash2, Edit2, Download, Upload, Plus, Clock } from 'lucide-react';
-import { ProjectState } from '../types';
+import { Folder, Trash2, Edit2, Download, Upload, Plus, Clock, Cloud, Monitor } from 'lucide-react';
+import { ProjectState, BeadType } from '../types';
+import type { CloudProject } from '../hooks/useCloudStorage';
 
 interface ProjectsPanelProps {
-  onLoadProject: (project: ProjectState, name: string) => void;
+  onLoadProject: (project: ProjectState, name: string, beads?: BeadType[]) => void;
   onNewProject: () => void;
+  cloudProjects?: CloudProject[];
+  onLoadCloudProject?: (cp: CloudProject) => void;
+  onDeleteCloudProject?: (id: string) => Promise<boolean>;
+  onRenameCloudProject?: (id: string, name: string) => Promise<boolean>;
+  isLoggedIn?: boolean;
 }
 
-const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProject }) => {
+const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProject, cloudProjects = [], onLoadCloudProject, onDeleteCloudProject, onRenameCloudProject, isLoggedIn = false }) => {
   const storage = useLocalStorage();
   const [projects, setProjects] = useState<SavedProject[]>(storage.loadProjects());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -70,6 +76,39 @@ const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProje
     return date.toLocaleDateString('fr-FR');
   };
 
+  const [viewMode, setViewMode] = useState<'local' | 'cloud'>(isLoggedIn ? 'cloud' : 'local');
+  const [editingCloudId, setEditingCloudId] = useState<string | null>(null);
+  const [editCloudName, setEditCloudName] = useState('');
+
+  const handleDeleteCloud = async (id: string, name: string) => {
+    if (onDeleteCloudProject && confirm(`Supprimer "${name}" du cloud ?`)) {
+      await onDeleteCloudProject(id);
+    }
+  };
+
+  const handleRenameCloud = async (id: string) => {
+    if (onRenameCloudProject && editCloudName.trim()) {
+      await onRenameCloudProject(id, editCloudName.trim());
+      setEditingCloudId(null);
+      setEditCloudName('');
+    }
+  };
+
+  const formatDateCloud = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'À l\'instant';
+    if (diffMins < 60) return `Il y a ${diffMins} min`;
+    if (diffHours < 24) return `Il y a ${diffHours}h`;
+    if (diffDays < 7) return `Il y a ${diffDays}j`;
+    return date.toLocaleDateString('fr-FR');
+  };
+
   return (
     <div className="h-full flex flex-col bg-white">
       {/* Header */}
@@ -77,8 +116,28 @@ const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProje
         <div className="flex items-center gap-2">
           <Folder size={24} className="text-indigo-600" />
           <h2 className="text-xl font-bold text-slate-800">
-            Mes Projets ({projects.length})
+            Mes Projets
           </h2>
+          {isLoggedIn && (
+            <div className="flex bg-slate-100 rounded-lg p-0.5 ml-2">
+              <button
+                onClick={() => setViewMode('cloud')}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                  viewMode === 'cloud' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'
+                }`}
+              >
+                <Cloud size={12} /> Cloud ({cloudProjects.length})
+              </button>
+              <button
+                onClick={() => setViewMode('local')}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                  viewMode === 'local' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'
+                }`}
+              >
+                <Monitor size={12} /> Local ({projects.length})
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <label className="flex items-center gap-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg cursor-pointer transition-colors">
@@ -96,8 +155,103 @@ const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProje
         </div>
       </div>
 
-      {/* Projects Grid */}
-      <div className="flex-1 overflow-y-auto p-4">
+      {/* Cloud Projects Grid */}
+      {isLoggedIn && viewMode === 'cloud' && (
+        <div className="flex-1 overflow-y-auto p-4">
+          {cloudProjects.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center p-8">
+              <Cloud size={64} className="text-slate-300 mb-4" />
+              <h3 className="text-lg font-semibold text-slate-700 mb-2">Aucun projet dans le cloud</h3>
+              <p className="text-sm text-slate-500 mb-4">
+                Sauvegarde un projet pour le retrouver sur tous tes appareils !
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {cloudProjects.map((cp) => (
+                <div
+                  key={cp.id}
+                  className="bg-white border-2 border-slate-200 rounded-xl overflow-hidden hover:border-indigo-400 hover:shadow-lg transition-all cursor-pointer group"
+                >
+                  <div
+                    onClick={() => onLoadCloudProject?.(cp)}
+                    className="bg-gradient-to-br from-indigo-50 to-purple-50 h-32 flex items-center justify-center overflow-hidden"
+                  >
+                    {cp.thumbnail ? (
+                      <img src={cp.thumbnail} alt={cp.name} className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="text-center">
+                        <Cloud size={32} className="text-indigo-300 mx-auto mb-1" />
+                        <p className="text-xs text-indigo-400">{cp.project_data.columns}x{cp.project_data.rows}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-3">
+                    {editingCloudId === cp.id ? (
+                      <div className="flex gap-1 mb-2">
+                        <input
+                          type="text"
+                          value={editCloudName}
+                          onChange={(e) => setEditCloudName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleRenameCloud(cp.id);
+                            if (e.key === 'Escape') setEditingCloudId(null);
+                          }}
+                          className="flex-1 px-2 py-1 text-sm border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"
+                          autoFocus
+                        />
+                        <button onClick={() => handleRenameCloud(cp.id)} className="px-2 py-1 bg-indigo-600 text-white text-xs rounded">✓</button>
+                        <button onClick={() => setEditingCloudId(null)} className="px-2 py-1 bg-slate-200 text-xs rounded">✗</button>
+                      </div>
+                    ) : (
+                      <h3 onClick={() => onLoadCloudProject?.(cp)} className="font-semibold text-slate-800 mb-1 truncate hover:text-indigo-600">
+                        {cp.name}
+                      </h3>
+                    )}
+
+                    <div className="flex items-center gap-1 text-xs text-slate-500 mb-3">
+                      <Cloud size={12} className="text-indigo-400" />
+                      <Clock size={12} />
+                      {formatDateCloud(cp.updated_at)}
+                    </div>
+
+                    <div className="text-xs text-slate-600 mb-3">
+                      {cp.project_data.columns} × {cp.project_data.rows} • {cp.project_data.mode}
+                    </div>
+
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => onLoadCloudProject?.(cp)}
+                        className="flex-1 px-2 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded transition-colors"
+                      >
+                        Ouvrir
+                      </button>
+                      <button
+                        onClick={() => { setEditingCloudId(cp.id); setEditCloudName(cp.name); }}
+                        className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded"
+                        title="Renommer"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCloud(cp.id, cp.name)}
+                        className="px-2 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded"
+                        title="Supprimer"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Local Projects Grid */}
+      <div className="flex-1 overflow-y-auto p-4" style={{ display: (!isLoggedIn || viewMode === 'local') ? 'block' : 'none' }}>
         {projects.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
             <Folder size={64} className="text-slate-300 mb-4" />

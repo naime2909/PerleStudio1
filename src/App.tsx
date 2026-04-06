@@ -9,12 +9,27 @@ import ProjectsPanel from './components/ProjectsPanel';
 import SettingsPanel from './components/SettingsPanel';
 import TemplateGallery from './components/TemplateGallery';
 import ImageConverter from './components/ImageConverter';
+import AuthModal from './components/AuthModal';
+import ProfileButton from './components/ProfileButton';
+import FriendsPanel from './components/FriendsPanel';
+import SharedProjectsPanel from './components/SharedProjectsPanel';
+import { useAuth } from './hooks/useAuth';
+import { useCloudStorage, CloudProject } from './hooks/useCloudStorage';
 import { useLocalStorage, AUTO_SAVE_INTERVAL } from './useLocalStorage';
-import { Info, Menu, X, Trash2, Eraser, Hand, Sparkles, Undo2, Redo2, Square, Circle, Pencil, Pentagon, CheckSquare, Palette, Grid, ClipboardList, Layout, Image as ImageIcon, Sliders, Crosshair, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Move, Layers, ZoomIn, ZoomOut, Scissors, Copy, ClipboardCopy, MousePointer2, Eye, EyeOff, Minus, Plus, Pipette, PaintBucket } from 'lucide-react';
+import { Info, Menu, X, Trash2, Eraser, Hand, Sparkles, Undo2, Redo2, Square, Circle, Pencil, Pentagon, CheckSquare, Palette, Grid, ClipboardList, Layout, Image as ImageIcon, Sliders, Crosshair, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Move, Layers, ZoomIn, ZoomOut, Scissors, Copy, ClipboardCopy, MousePointer2, Eye, EyeOff, Minus, Plus, Pipette, PaintBucket, Cloud, CloudOff, Users, Share2 } from 'lucide-react';
 
 const App: React.FC = () => {
+  // -- Auth & Cloud --
+  const auth = useAuth();
+  const cloud = useCloudStorage(auth.user?.id);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [cloudProjects, setCloudProjects] = useState<CloudProject[]>([]);
+  const [currentCloudId, setCurrentCloudId] = useState<string | undefined>(undefined);
+  const [cloudSaving, setCloudSaving] = useState(false);
+  const [showNoAccountBanner, setShowNoAccountBanner] = useState(true);
+
   const [activeBeads, setActiveBeads] = useState<BeadType[]>(DEFAULT_BEADS);
-  
+
   // -- History & Project State --
   const [history, setHistory] = useState<ProjectState[]>([{
     mode: 'loom',
@@ -67,7 +82,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Tab system
-  const [activeTab, setActiveTab] = useState<'editor' | 'templates' | 'convert' | 'projects' | 'settings'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'templates' | 'convert' | 'projects' | 'friends' | 'shared' | 'settings'>('editor');
   
   // Project name & auto-save
   const [projectName, setProjectName] = useState('Sans titre');
@@ -541,13 +556,43 @@ const App: React.FC = () => {
   };
 
   // Manual save project
-  const handleSaveProject = () => {
+  const handleSaveProject = async () => {
+    // Always save locally
     const saved = storage.saveCurrentProject(project, projectName);
-    if (saved) {
-      setLastSaved(new Date());
-      alert(`Projet "${projectName}" sauvegardé ! ✅`);
+
+    // Also save to cloud if logged in
+    if (auth.user) {
+      setCloudSaving(true);
+      const thumbnail = saved?.thumbnail || '';
+      const cloudSaved = await cloud.saveProject(
+        projectName,
+        project,
+        activeBeads,
+        settings,
+        thumbnail,
+        currentCloudId
+      );
+      if (cloudSaved) {
+        setCurrentCloudId(cloudSaved.id);
+        setLastSaved(new Date());
+        setCloudSaving(false);
+        alert(`Projet "${projectName}" sauvegardé (local + cloud) !`);
+        // Refresh cloud projects list
+        cloud.loadProjects().then(setCloudProjects);
+      } else {
+        setCloudSaving(false);
+        if (saved) {
+          setLastSaved(new Date());
+          alert(`Projet "${projectName}" sauvegardé localement (erreur cloud).`);
+        }
+      }
     } else {
-      alert('Erreur lors de la sauvegarde.');
+      if (saved) {
+        setLastSaved(new Date());
+        alert(`Projet "${projectName}" sauvegardé localement !`);
+      } else {
+        alert('Erreur lors de la sauvegarde.');
+      }
     }
   };
 
@@ -565,10 +610,28 @@ const App: React.FC = () => {
   };
 
   // Handlers for tabs
-  const handleLoadProject = (loadedProject: ProjectState, name: string) => {
+  const handleLoadProject = (loadedProject: ProjectState, name: string, beads?: BeadType[]) => {
     setHistory([migrateProject(loadedProject)]);
     setHistoryIndex(0);
     setProjectName(name);
+    if (beads && beads.length > 0) {
+      setActiveBeads(beads);
+    }
+    setActiveTab('editor');
+  };
+
+  // Load a cloud project
+  const handleLoadCloudProject = (cp: CloudProject) => {
+    setHistory([migrateProject(cp.project_data)]);
+    setHistoryIndex(0);
+    setProjectName(cp.name);
+    setCurrentCloudId(cp.id);
+    if (cp.beads_data && cp.beads_data.length > 0) {
+      setActiveBeads(cp.beads_data);
+    }
+    if (cp.settings_data) {
+      setSettings(cp.settings_data);
+    }
     setActiveTab('editor');
   };
 
@@ -585,6 +648,7 @@ const App: React.FC = () => {
       }]);
       setHistoryIndex(0);
       setProjectName('Sans titre');
+      setCurrentCloudId(undefined);
       setActiveTab('editor');
     }
   };
@@ -602,14 +666,19 @@ const App: React.FC = () => {
   // Auto-save project
   useEffect(() => {
     if (activeTab === 'editor') {
-      const timer = setInterval(() => {
+      const timer = setInterval(async () => {
         storage.saveCurrentProject(project, projectName);
+        // Cloud auto-save if logged in
+        if (auth.user && currentCloudId) {
+          const thumbnail = '';
+          await cloud.saveProject(projectName, project, activeBeads, settings, thumbnail, currentCloudId);
+        }
         setLastSaved(new Date());
       }, AUTO_SAVE_INTERVAL);
 
       return () => clearInterval(timer);
     }
-  }, [project, projectName, activeTab]);
+  }, [project, projectName, activeTab, auth.user, currentCloudId]);
 
   // Load saved project on mount
   useEffect(() => {
@@ -620,6 +689,16 @@ const App: React.FC = () => {
       setProjectName(saved.name);
     }
   }, []);
+
+  // Load cloud projects when user logs in
+  useEffect(() => {
+    if (auth.user) {
+      cloud.loadProjects().then(setCloudProjects);
+    } else {
+      setCloudProjects([]);
+      setCurrentCloudId(undefined);
+    }
+  }, [auth.user]);
 
   return (
     <div className="h-[100dvh] bg-slate-100 text-slate-800 font-sans flex flex-col overflow-hidden">
@@ -659,6 +738,13 @@ const App: React.FC = () => {
                 </button>
               </div>
             )}
+            <ProfileButton
+              profile={auth.profile}
+              isLoggedIn={!!auth.user}
+              onLoginClick={() => setShowAuthModal(true)}
+              onLogout={auth.signOut}
+              onUpdateUsername={auth.updateUsername}
+            />
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="lg:hidden p-1.5 bg-white/20 rounded hover:bg-white/30"
@@ -710,6 +796,30 @@ const App: React.FC = () => {
         >
           📁 Mes Projets
         </button>
+        {auth.user && (
+          <button
+            onClick={() => setActiveTab('friends')}
+            className={`px-2 lg:px-4 py-2 lg:py-3 font-semibold text-xs lg:text-sm whitespace-nowrap border-b-2 transition-colors ${
+              activeTab === 'friends'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            👥 Amis
+          </button>
+        )}
+        {auth.user && (
+          <button
+            onClick={() => setActiveTab('shared')}
+            className={`px-2 lg:px-4 py-2 lg:py-3 font-semibold text-xs lg:text-sm whitespace-nowrap border-b-2 transition-colors ${
+              activeTab === 'shared'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            🔗 Partagés
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('settings')}
           className={`px-2 lg:px-4 py-2 lg:py-3 font-semibold text-xs lg:text-sm whitespace-nowrap border-b-2 transition-colors ${
@@ -1293,8 +1403,53 @@ const App: React.FC = () => {
         <ProjectsPanel
           onLoadProject={handleLoadProject}
           onNewProject={handleNewProject}
+          cloudProjects={cloudProjects}
+          onLoadCloudProject={handleLoadCloudProject}
+          onDeleteCloudProject={async (id) => {
+            const ok = await cloud.deleteProject(id);
+            if (ok) {
+              const updated = await cloud.loadProjects();
+              setCloudProjects(updated);
+            }
+            return ok;
+          }}
+          onRenameCloudProject={async (id, name) => {
+            const ok = await cloud.renameProject(id, name);
+            if (ok) {
+              const updated = await cloud.loadProjects();
+              setCloudProjects(updated);
+            }
+            return ok;
+          }}
+          isLoggedIn={!!auth.user}
         />
       </div>
+
+      {/* FRIENDS TAB */}
+      {auth.user && (
+        <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'friends' ? 'block' : 'none' }}>
+          <FriendsPanel
+            userId={auth.user.id}
+            searchUsers={cloud.searchUsers}
+            sendFriendRequest={cloud.sendFriendRequest}
+            respondToFriendRequest={cloud.respondToFriendRequest}
+            removeFriend={cloud.removeFriend}
+            getFriends={cloud.getFriends}
+            shareProject={cloud.shareProject}
+            cloudProjects={cloudProjects}
+          />
+        </div>
+      )}
+
+      {/* SHARED TAB */}
+      {auth.user && (
+        <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'shared' ? 'block' : 'none' }}>
+          <SharedProjectsPanel
+            getSharedWithMe={cloud.getSharedWithMe}
+            onLoadProject={handleLoadProject}
+          />
+        </div>
+      )}
 
       {/* SETTINGS TAB */}
       <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'settings' ? 'flex' : 'none' }}>
@@ -1647,6 +1802,40 @@ const App: React.FC = () => {
                 Remplir
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSignIn={auth.signIn}
+        onSignUp={auth.signUp}
+        onGoogleSignIn={auth.signInWithGoogle}
+      />
+
+      {/* Banner: not logged in */}
+      {!auth.user && !auth.loading && showNoAccountBanner && activeTab === 'editor' && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 bg-amber-50 border border-amber-300 rounded-xl shadow-lg px-4 py-3 flex items-center gap-3 max-w-md">
+          <CloudOff size={20} className="text-amber-600 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-amber-800">Mode hors-ligne</p>
+            <p className="text-xs text-amber-600">Connecte-toi pour sauvegarder tes projets dans le cloud et les retrouver partout.</p>
+          </div>
+          <div className="flex gap-1 shrink-0">
+            <button
+              onClick={() => setShowAuthModal(true)}
+              className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700"
+            >
+              Connexion
+            </button>
+            <button
+              onClick={() => setShowNoAccountBanner(false)}
+              className="p-1.5 text-amber-500 hover:text-amber-700"
+            >
+              <X size={14} />
+            </button>
           </div>
         </div>
       )}
