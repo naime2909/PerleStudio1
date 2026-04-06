@@ -14,6 +14,7 @@ import ProfileButton from './components/ProfileButton';
 import FriendsPanel from './components/FriendsPanel';
 import SharedProjectsPanel from './components/SharedProjectsPanel';
 import ProfilePage from './components/ProfilePage';
+import TextToBeadsModal from './components/TextToBeadsModal';
 import { useAuth } from './hooks/useAuth';
 import { useCloudStorage, CloudProject } from './hooks/useCloudStorage';
 import { useLocalStorage, AUTO_SAVE_INTERVAL } from './useLocalStorage';
@@ -78,6 +79,9 @@ const App: React.FC = () => {
 
   // Fill Empty State
   const [fillColorId, setFillColorId] = useState<string | null>(null);
+
+  // Text to Beads
+  const [showTextModal, setShowTextModal] = useState(false);
   
   // Sidebar State
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -1011,7 +1015,18 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 5. OVERLAY SECTION */}
+                {/* 5. TEXT TO BEADS */}
+                <div className="p-3 border-b border-slate-100">
+                    <button
+                      onClick={() => setShowTextModal(true)}
+                      className="w-full flex items-center justify-center gap-2 p-2.5 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg hover:from-indigo-100 hover:to-purple-100 hover:border-indigo-300 transition-colors"
+                    >
+                      <span className="text-base">🔤</span>
+                      <span className="text-xs font-bold text-indigo-700">Texte en Perles</span>
+                    </button>
+                </div>
+
+                {/* 6. OVERLAY SECTION */}
                 <div className="p-3 pb-20 lg:pb-3 border-b border-slate-100">
                     <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Calque / Modèle</p>
                     {!overlay ? (
@@ -1836,6 +1851,17 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Text to Beads Modal */}
+      <TextToBeadsModal
+        isOpen={showTextModal}
+        onClose={() => setShowTextModal(false)}
+        activeBeads={activeBeads}
+        selectedBeadId={selectedBeadId}
+        gridColumns={project.columns}
+        gridRows={project.rows}
+        onApply={handleUpdateGrid}
+      />
 
       {/* Auth Modal */}
       <AuthModal
