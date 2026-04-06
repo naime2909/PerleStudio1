@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
 import { Template, TEMPLATES, getCategories } from '../templates';
 import { BeadType, PatternGrid, StitchType } from '../types';
-import { Sparkles, Search, Filter, Heart, Leaf, Shapes, Star, Type, Copy, X } from 'lucide-react';
+import { UserTemplate } from '../hooks/useCloudStorage';
+import { Sparkles, Search, Filter, Heart, Leaf, Shapes, Star, Type, Copy, X, Trash2, User } from 'lucide-react';
 
 interface TemplateGalleryProps {
   beadTypes: BeadType[];
   onApplyTemplate: (grid: PatternGrid, rows: number, columns: number, mode: StitchType) => void;
+  userTemplates?: UserTemplate[];
+  isLoggedIn?: boolean;
+  onDeleteUserTemplate?: (id: string) => Promise<boolean>;
 }
 
-const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTemplate }) => {
+const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTemplate, userTemplates = [], isLoggedIn = false, onDeleteUserTemplate }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
+  const [viewTab, setViewTab] = useState<'predefined' | 'mine'>('predefined');
 
   // Repeat modal state
   const [showRepeatModal, setShowRepeatModal] = useState(false);
@@ -19,8 +24,24 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTem
   const [repeatX, setRepeatX] = useState(3);
   const [repeatY, setRepeatY] = useState(1);
 
+  // Convert user templates to Template-like format
+  const userTemplatesAsTemplates: (Template & { userTemplateId: string })[] = userTemplates.map(ut => ({
+    id: `user-${ut.id}`,
+    userTemplateId: ut.id,
+    name: ut.name,
+    category: ut.category as Template['category'],
+    difficulty: ut.difficulty as Template['difficulty'],
+    rows: ut.rows,
+    columns: ut.columns,
+    mode: ut.mode as StitchType,
+    grid: ut.grid as PatternGrid,
+    beadColors: ut.bead_colors as Record<string, string>,
+    description: ut.description || undefined,
+  }));
+
   // Filter templates
-  const filteredTemplates = TEMPLATES.filter(template => {
+  const sourceTemplates = viewTab === 'mine' ? userTemplatesAsTemplates : TEMPLATES;
+  const filteredTemplates = sourceTemplates.filter(template => {
     const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory;
     const matchesSearch = template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           template.description?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -163,7 +184,8 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTem
     floral: <Leaf size={16} />,
     animal: <Heart size={16} />,
     symbole: <Star size={16} />,
-    alphabet: <Type size={16} />
+    alphabet: <Type size={16} />,
+    custom: <User size={16} />
   };
 
   // Difficulty colors
@@ -181,9 +203,32 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTem
           <Sparkles size={24} className="text-indigo-600" />
           <h2 className="text-xl font-bold text-slate-800">Galerie de Templates</h2>
         </div>
-        <p className="text-sm text-slate-600">
-          {TEMPLATES.length} motifs prédéfinis pour commencer rapidement
-        </p>
+
+        {/* Tabs: Prédéfinis / Mes Templates */}
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={() => setViewTab('predefined')}
+            className={`flex-1 px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 ${
+              viewTab === 'predefined'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <Sparkles size={16} />
+            Prédéfinis ({TEMPLATES.length})
+          </button>
+          <button
+            onClick={() => setViewTab('mine')}
+            className={`flex-1 px-4 py-2 text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 ${
+              viewTab === 'mine'
+                ? 'bg-purple-600 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <User size={16} />
+            Mes Templates ({userTemplates.length})
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -221,7 +266,7 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTem
               >
                 Tous
               </button>
-              {getCategories().map(cat => (
+              {[...getCategories(), ...(viewTab === 'mine' ? ['custom'] : [])].map(cat => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
@@ -262,8 +307,16 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTem
         {filteredTemplates.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-slate-400">
             <Sparkles size={48} className="mb-4 opacity-50" />
-            <p className="text-lg font-semibold">Aucun template trouvé</p>
-            <p className="text-sm">Essayez de changer les filtres</p>
+            <p className="text-lg font-semibold">
+              {viewTab === 'mine' && userTemplates.length === 0
+                ? 'Aucun template personnel'
+                : 'Aucun template trouvé'}
+            </p>
+            <p className="text-sm">
+              {viewTab === 'mine' && userTemplates.length === 0
+                ? (isLoggedIn ? 'Sauvegardez un projet comme template pour le retrouver ici' : 'Connectez-vous pour créer des templates')
+                : 'Essayez de changer les filtres'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -300,13 +353,29 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTem
                   )}
 
                   {/* Apply Button */}
-                  <button
-                    onClick={() => handleTemplateClick(template)}
-                    className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors group-hover:scale-105 transition-transform flex items-center justify-center gap-2"
-                  >
-                    <Copy size={16} />
-                    Utiliser ce motif
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleTemplateClick(template)}
+                      className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Copy size={16} />
+                      Utiliser
+                    </button>
+                    {viewTab === 'mine' && onDeleteUserTemplate && 'userTemplateId' in template && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (confirm(`Supprimer le template "${template.name}" ?`)) {
+                            await onDeleteUserTemplate((template as any).userTemplateId);
+                          }
+                        }}
+                        className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors"
+                        title="Supprimer ce template"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

@@ -201,3 +201,50 @@ CREATE TRIGGER projects_updated_at
   BEFORE UPDATE ON projects
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at();
+
+-- ============================================
+-- 5. Table des templates utilisateurs
+-- ============================================
+CREATE TABLE user_templates (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL DEFAULT 'Mon template',
+  category TEXT NOT NULL DEFAULT 'custom' CHECK (category IN ('geometrique', 'floral', 'animal', 'symbole', 'alphabet', 'custom')),
+  difficulty TEXT NOT NULL DEFAULT 'debutant' CHECK (difficulty IN ('debutant', 'intermediaire', 'avance')),
+  rows INTEGER NOT NULL,
+  columns INTEGER NOT NULL,
+  mode TEXT NOT NULL DEFAULT 'loom',
+  grid JSONB NOT NULL,
+  bead_colors JSONB NOT NULL, -- Map "row-col" => hex color
+  description TEXT,
+  thumbnail TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE INDEX idx_user_templates_user_id ON user_templates(user_id);
+CREATE INDEX idx_user_templates_updated_at ON user_templates(updated_at DESC);
+
+-- RLS for user_templates
+ALTER TABLE user_templates ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own templates"
+  ON user_templates FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own templates"
+  ON user_templates FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own templates"
+  ON user_templates FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own templates"
+  ON user_templates FOR DELETE
+  USING (auth.uid() = user_id);
+
+CREATE TRIGGER user_templates_updated_at
+  BEFORE UPDATE ON user_templates
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at();

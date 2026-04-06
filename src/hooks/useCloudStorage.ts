@@ -2,6 +2,23 @@ import { useCallback } from 'react';
 import { supabase, supabaseConfigured } from '../lib/supabase';
 import { ProjectState, BeadType, ProjectSettings } from '../types';
 
+export interface UserTemplate {
+  id: string;
+  user_id: string;
+  name: string;
+  category: 'geometrique' | 'floral' | 'animal' | 'symbole' | 'alphabet' | 'custom';
+  difficulty: 'debutant' | 'intermediaire' | 'avance';
+  rows: number;
+  columns: number;
+  mode: string;
+  grid: Record<string, string>;
+  bead_colors: Record<string, string>;
+  description: string | null;
+  thumbnail: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CloudProject {
   id: string;
   user_id: string;
@@ -288,6 +305,83 @@ export const useCloudStorage = (userId: string | undefined) => {
     return true;
   }, [userId]);
 
+  // ========================
+  // USER TEMPLATES
+  // ========================
+
+  const loadTemplates = useCallback(async (): Promise<UserTemplate[]> => {
+    if (!userId || !supabaseConfigured) return [];
+
+    const { data, error } = await supabase
+      .from('user_templates')
+      .select('*')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      console.error('Error loading user templates:', error);
+      return [];
+    }
+    return data || [];
+  }, [userId]);
+
+  const saveTemplate = useCallback(async (
+    template: {
+      name: string;
+      category: UserTemplate['category'];
+      difficulty: UserTemplate['difficulty'];
+      rows: number;
+      columns: number;
+      mode: string;
+      grid: Record<string, string>;
+      bead_colors: Record<string, string>;
+      description?: string;
+      thumbnail?: string;
+    }
+  ): Promise<UserTemplate | null> => {
+    if (!userId || !supabaseConfigured) return null;
+
+    const { data, error } = await supabase
+      .from('user_templates')
+      .insert({
+        user_id: userId,
+        name: template.name,
+        category: template.category,
+        difficulty: template.difficulty,
+        rows: template.rows,
+        columns: template.columns,
+        mode: template.mode,
+        grid: template.grid,
+        bead_colors: template.bead_colors,
+        description: template.description || null,
+        thumbnail: template.thumbnail || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error saving template:', error);
+      return null;
+    }
+    return data;
+  }, [userId]);
+
+  const deleteTemplate = useCallback(async (templateId: string) => {
+    if (!userId || !supabaseConfigured) return false;
+
+    const { error } = await supabase
+      .from('user_templates')
+      .delete()
+      .eq('id', templateId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error deleting template:', error);
+      return false;
+    }
+    return true;
+  }, [userId]);
+
   return {
     // Projects
     loadProjects,
@@ -304,5 +398,9 @@ export const useCloudStorage = (userId: string | undefined) => {
     shareProject,
     getSharedWithMe,
     unshareProject,
+    // Templates
+    loadTemplates,
+    saveTemplate,
+    deleteTemplate,
   };
 };
