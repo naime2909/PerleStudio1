@@ -24,15 +24,22 @@ const ProfileButton: React.FC<ProfileButtonProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!showDropdown) return;
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setShowDropdown(false);
         setEditingName(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    // Use setTimeout to avoid the opening click from immediately closing
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 10);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showDropdown]);
 
   if (!isLoggedIn) {
     return (
@@ -107,19 +114,19 @@ const ProfileButton: React.FC<ProfileButtonProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-slate-800">{profile?.username}</p>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-800 truncate">{profile?.username || 'Mon compte'}</p>
                   <p className="text-xs text-slate-500 flex items-center gap-1">
                     <Cloud size={12} className="text-green-500" /> Connecté
                   </p>
                 </div>
                 <button
-                  onClick={() => { setEditingName(true); setNewUsername(profile?.username || ''); }}
-                  className="p-1.5 bg-white rounded-lg hover:bg-slate-100 text-slate-600"
+                  onClick={(e) => { e.stopPropagation(); setEditingName(true); setNewUsername(profile?.username || ''); }}
+                  className="p-2 bg-white rounded-lg hover:bg-slate-100 text-slate-600 shrink-0 border border-slate-200"
                   title="Modifier le pseudo"
                 >
-                  <Edit3 size={14} />
+                  <Edit3 size={16} />
                 </button>
               </div>
             )}
