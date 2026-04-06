@@ -1,10 +1,74 @@
-// Pixel font 5x7 — each character is a 7-row array of 5-bit numbers
+// Pixel fonts for bead text rendering
+// Each character is an array of rows, each row is a bitmask
 // Bit 1 = pixel on, read left to right
-// Standard bitmap font covering A-Z, 0-9, basic punctuation
 
 type FontChar = number[];
+type FontDef = { chars: Record<string, FontChar>; width: number; height: number };
 
-const FONT: Record<string, FontChar> = {
+// ========================
+// MINI FONT 3x5
+// ========================
+const FONT_MINI: FontDef = {
+  width: 3, height: 5,
+  chars: {
+    'A': [0b111, 0b101, 0b111, 0b101, 0b101],
+    'B': [0b110, 0b101, 0b110, 0b101, 0b110],
+    'C': [0b111, 0b100, 0b100, 0b100, 0b111],
+    'D': [0b110, 0b101, 0b101, 0b101, 0b110],
+    'E': [0b111, 0b100, 0b110, 0b100, 0b111],
+    'F': [0b111, 0b100, 0b110, 0b100, 0b100],
+    'G': [0b111, 0b100, 0b101, 0b101, 0b111],
+    'H': [0b101, 0b101, 0b111, 0b101, 0b101],
+    'I': [0b111, 0b010, 0b010, 0b010, 0b111],
+    'J': [0b011, 0b001, 0b001, 0b101, 0b010],
+    'K': [0b101, 0b110, 0b100, 0b110, 0b101],
+    'L': [0b100, 0b100, 0b100, 0b100, 0b111],
+    'M': [0b101, 0b111, 0b111, 0b101, 0b101],
+    'N': [0b101, 0b111, 0b111, 0b111, 0b101],
+    'O': [0b111, 0b101, 0b101, 0b101, 0b111],
+    'P': [0b111, 0b101, 0b111, 0b100, 0b100],
+    'Q': [0b111, 0b101, 0b101, 0b111, 0b001],
+    'R': [0b111, 0b101, 0b111, 0b110, 0b101],
+    'S': [0b111, 0b100, 0b111, 0b001, 0b111],
+    'T': [0b111, 0b010, 0b010, 0b010, 0b010],
+    'U': [0b101, 0b101, 0b101, 0b101, 0b111],
+    'V': [0b101, 0b101, 0b101, 0b101, 0b010],
+    'W': [0b101, 0b101, 0b111, 0b111, 0b101],
+    'X': [0b101, 0b101, 0b010, 0b101, 0b101],
+    'Y': [0b101, 0b101, 0b010, 0b010, 0b010],
+    'Z': [0b111, 0b001, 0b010, 0b100, 0b111],
+    '0': [0b111, 0b101, 0b101, 0b101, 0b111],
+    '1': [0b010, 0b110, 0b010, 0b010, 0b111],
+    '2': [0b111, 0b001, 0b111, 0b100, 0b111],
+    '3': [0b111, 0b001, 0b111, 0b001, 0b111],
+    '4': [0b101, 0b101, 0b111, 0b001, 0b001],
+    '5': [0b111, 0b100, 0b111, 0b001, 0b111],
+    '6': [0b111, 0b100, 0b111, 0b101, 0b111],
+    '7': [0b111, 0b001, 0b010, 0b010, 0b010],
+    '8': [0b111, 0b101, 0b111, 0b101, 0b111],
+    '9': [0b111, 0b101, 0b111, 0b001, 0b111],
+    ' ': [0b000, 0b000, 0b000, 0b000, 0b000],
+    '.': [0b000, 0b000, 0b000, 0b000, 0b010],
+    '!': [0b010, 0b010, 0b010, 0b000, 0b010],
+    '?': [0b110, 0b001, 0b010, 0b000, 0b010],
+    '-': [0b000, 0b000, 0b111, 0b000, 0b000],
+    '+': [0b000, 0b010, 0b111, 0b010, 0b000],
+    ':': [0b000, 0b010, 0b000, 0b010, 0b000],
+    ',': [0b000, 0b000, 0b000, 0b010, 0b100],
+    '/': [0b001, 0b001, 0b010, 0b100, 0b100],
+    '*': [0b101, 0b010, 0b111, 0b010, 0b101],
+    '\'': [0b010, 0b010, 0b000, 0b000, 0b000],
+    '#': [0b101, 0b111, 0b101, 0b111, 0b101],
+    '=': [0b000, 0b111, 0b000, 0b111, 0b000],
+  }
+};
+
+// ========================
+// STANDARD FONT 5x7
+// ========================
+const FONT_STANDARD: FontDef = {
+  width: 5, height: 7,
+  chars: {
   'A': [0b01110, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001],
   'B': [0b11110, 0b10001, 0b10001, 0b11110, 0b10001, 0b10001, 0b11110],
   'C': [0b01110, 0b10001, 0b10000, 0b10000, 0b10000, 0b10001, 0b01110],
@@ -54,29 +118,29 @@ const FONT: Record<string, FontChar> = {
   '\'': [0b00100, 0b00100, 0b01000, 0b00000, 0b00000, 0b00000, 0b00000],
   '#': [0b01010, 0b01010, 0b11111, 0b01010, 0b11111, 0b01010, 0b01010],
   '*': [0b00000, 0b10101, 0b01110, 0b11111, 0b01110, 0b10101, 0b00000],
+  }
 };
 
-const CHAR_WIDTH = 5;
-const CHAR_HEIGHT = 7;
+export type FontSize = 'mini' | 'standard';
+
+const FONTS: Record<FontSize, FontDef> = {
+  mini: FONT_MINI,
+  standard: FONT_STANDARD,
+};
 
 export interface TextToBeadsResult {
-  grid: Record<string, string>; // "row-col" -> beadId
+  grid: Record<string, string>;
   width: number;
   height: number;
 }
 
 /**
  * Render text to a bead grid
- * @param text - Text to render
- * @param beadId - Bead color ID to use
- * @param scale - Size multiplier (1 = 5x7 per char, 2 = 10x14, etc.)
- * @param spacing - Pixels between characters
- * @param startRow - Row offset to place text at
- * @param startCol - Column offset
  */
 export const renderTextToBeads = (
   text: string,
   beadId: string,
+  fontSize: FontSize = 'standard',
   scale: number = 1,
   spacing: number = 1,
   startRow: number = 0,
@@ -84,25 +148,24 @@ export const renderTextToBeads = (
 ): TextToBeadsResult => {
   const grid: Record<string, string> = {};
   const upperText = text.toUpperCase();
+  const font = FONTS[fontSize];
 
   let cursorX = startCol;
 
   for (let ci = 0; ci < upperText.length; ci++) {
     const char = upperText[ci];
-    const charData = FONT[char];
+    const charData = font.chars[char];
 
     if (!charData) {
-      // Unknown character — treat as space
-      cursorX += (CHAR_WIDTH + spacing) * scale;
+      cursorX += (font.width + spacing) * scale;
       continue;
     }
 
-    for (let row = 0; row < CHAR_HEIGHT; row++) {
+    for (let row = 0; row < font.height; row++) {
       const rowBits = charData[row];
-      for (let col = 0; col < CHAR_WIDTH; col++) {
-        const isOn = (rowBits >> (CHAR_WIDTH - 1 - col)) & 1;
+      for (let col = 0; col < font.width; col++) {
+        const isOn = (rowBits >> (font.width - 1 - col)) & 1;
         if (isOn) {
-          // Apply scale
           for (let sy = 0; sy < scale; sy++) {
             for (let sx = 0; sx < scale; sx++) {
               const r = startRow + row * scale + sy;
@@ -114,24 +177,21 @@ export const renderTextToBeads = (
       }
     }
 
-    cursorX += (CHAR_WIDTH + spacing) * scale;
+    cursorX += (font.width + spacing) * scale;
   }
 
   const totalWidth = cursorX - startCol;
-  const totalHeight = CHAR_HEIGHT * scale;
+  const totalHeight = font.height * scale;
 
   return { grid, width: totalWidth, height: totalHeight };
 };
 
-/**
- * Get the total width needed for text
- */
-export const getTextWidth = (text: string, scale: number = 1, spacing: number = 1): number => {
-  return text.length * (CHAR_WIDTH + spacing) * scale - spacing * scale;
+export const getTextWidth = (text: string, fontSize: FontSize = 'standard', scale: number = 1, spacing: number = 1): number => {
+  const font = FONTS[fontSize];
+  if (text.length === 0) return 0;
+  return text.length * (font.width + spacing) * scale - spacing * scale;
 };
 
-export const getTextHeight = (scale: number = 1): number => {
-  return CHAR_HEIGHT * scale;
+export const getTextHeight = (fontSize: FontSize = 'standard', scale: number = 1): number => {
+  return FONTS[fontSize].height * scale;
 };
-
-export { CHAR_WIDTH, CHAR_HEIGHT };

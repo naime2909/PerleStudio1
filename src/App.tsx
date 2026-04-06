@@ -1860,7 +1860,11 @@ const App: React.FC = () => {
         selectedBeadId={selectedBeadId}
         gridColumns={project.columns}
         gridRows={project.rows}
+        gridEmpty={Object.keys(project.grid).length === 0}
         onApply={handleUpdateGrid}
+        onResizeGrid={(cols, rows) => {
+          pushToHistory({ ...project, columns: cols, rows: rows });
+        }}
       />
 
       {/* Auth Modal */}
