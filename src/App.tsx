@@ -15,8 +15,9 @@ import FriendsPanel from './components/FriendsPanel';
 import SharedProjectsPanel from './components/SharedProjectsPanel';
 import ProfilePage from './components/ProfilePage';
 import TextToBeadsModal from './components/TextToBeadsModal';
+import SaveModal from './components/SaveModal';
 import { useAuth } from './hooks/useAuth';
-import { useCloudStorage, CloudProject } from './hooks/useCloudStorage';
+import { useCloudStorage, CloudProject, UserTemplate } from './hooks/useCloudStorage';
 import { useLocalStorage, AUTO_SAVE_INTERVAL } from './useLocalStorage';
 import { Info, Menu, X, Trash2, Eraser, Hand, Sparkles, Undo2, Redo2, Square, Circle, Pencil, Pentagon, CheckSquare, Palette, Grid, ClipboardList, Layout, Image as ImageIcon, Sliders, Crosshair, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Move, Layers, ZoomIn, ZoomOut, Scissors, Copy, ClipboardCopy, MousePointer2, Eye, EyeOff, Minus, Plus, Pipette, PaintBucket, Cloud, CloudOff, Users, Share2 } from 'lucide-react';
 
@@ -82,6 +83,10 @@ const App: React.FC = () => {
 
   // Text to Beads
   const [showTextModal, setShowTextModal] = useState(false);
+
+  // Save Modal
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [userTemplates, setUserTemplates] = useState<import('./hooks/useCloudStorage').UserTemplate[]>([]);
   
   // Sidebar State
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -601,6 +606,44 @@ const App: React.FC = () => {
     }
   };
 
+  // Save as template
+  const handleSaveAsTemplate = async (opts: {
+    name: string;
+    category: UserTemplate['category'];
+    difficulty: UserTemplate['difficulty'];
+    description: string;
+  }) => {
+    if (!auth.user) return;
+
+    // Build beadColors map: for each grid cell, find the hex of the bead
+    const beadColors: Record<string, string> = {};
+    Object.entries(project.grid).forEach(([key, beadId]) => {
+      const bead = activeBeads.find(b => b.id === beadId);
+      if (bead) {
+        beadColors[key] = bead.hex;
+      }
+    });
+
+    const saved = await cloud.saveTemplate({
+      name: opts.name,
+      category: opts.category,
+      difficulty: opts.difficulty,
+      rows: project.rows,
+      columns: project.columns,
+      mode: project.mode,
+      grid: project.grid,
+      bead_colors: beadColors,
+      description: opts.description || undefined,
+    });
+
+    if (saved) {
+      alert(`Template "${opts.name}" sauvegardé !`);
+      cloud.loadTemplates().then(setUserTemplates);
+    } else {
+      alert('Erreur lors de la sauvegarde du template.');
+    }
+  };
+
   // Migrate old project format to new one
   const migrateProject = (p: any): ProjectState => {
     const migrated = { ...p };
@@ -695,13 +738,15 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Load cloud projects when user logs in
+  // Load cloud projects and templates when user logs in
   useEffect(() => {
     if (auth.user) {
       cloud.loadProjects().then(setCloudProjects);
+      cloud.loadTemplates().then(setUserTemplates);
     } else {
       setCloudProjects([]);
       setCurrentCloudId(undefined);
+      setUserTemplates([]);
     }
   }, [auth.user]);
 
@@ -958,7 +1003,7 @@ const App: React.FC = () => {
                     {/* Action Buttons */}
                     <div className="space-y-2">
                         <button
-                            onClick={handleSaveProject}
+                            onClick={() => setShowSaveModal(true)}
                             className="w-full flex items-center justify-center gap-2 p-2 bg-indigo-600 text-white text-xs font-bold rounded hover:bg-indigo-700 transition-colors shadow-sm"
                         >
                             <Copy size={14}/> 💾 Sauvegarder
@@ -1175,6 +1220,7 @@ const App: React.FC = () => {
                                     <button onClick={handleCopy} className="p-1 lg:p-1.5 bg-indigo-50 border border-indigo-200 rounded text-indigo-700 hover:bg-indigo-100" title="Copier"><Copy size={16}/></button>
                                     <button onClick={handleCut} className="p-1 lg:p-1.5 bg-indigo-50 border border-indigo-200 rounded text-indigo-700 hover:bg-indigo-100" title="Couper"><Scissors size={16}/></button>
                                     <button onClick={handleDuplicate} className="p-1 lg:p-1.5 bg-indigo-50 border border-indigo-200 rounded text-indigo-700 hover:bg-indigo-100" title="Dupliquer"><ClipboardCopy size={16}/></button>
+                                    <button onClick={() => { handleCut(); setTimeout(() => setToolMode('paste'), 50); }} className="p-1 lg:p-1.5 bg-purple-50 border border-purple-200 rounded text-purple-700 hover:bg-purple-100" title="Déplacer la sélection"><Move size={16}/></button>
                                     <button onClick={() => setSelection(null)} className="p-1 lg:p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-100" title="Annuler"><X size={16}/></button>
                                 </div>
                              ) : (
@@ -1393,6 +1439,13 @@ const App: React.FC = () => {
       <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'templates' ? 'flex' : 'none' }}>
         <TemplateGallery
           beadTypes={activeBeads}
+          userTemplates={userTemplates}
+          isLoggedIn={!!auth.user}
+          onDeleteUserTemplate={async (id) => {
+            const ok = await cloud.deleteTemplate(id);
+            if (ok) cloud.loadTemplates().then(setUserTemplates);
+            return ok;
+          }}
           onApplyTemplate={(grid, rows, columns, mode) => {
             const newProject: ProjectState = {
               ...project,
@@ -1866,6 +1919,17 @@ const App: React.FC = () => {
           pushToHistory({ ...project, columns: cols, rows: rows });
         }}
       />
+
+      {/* Save Modal */}
+      {showSaveModal && (
+        <SaveModal
+          projectName={projectName}
+          isLoggedIn={!!auth.user}
+          onSaveProject={handleSaveProject}
+          onSaveAsTemplate={handleSaveAsTemplate}
+          onClose={() => setShowSaveModal(false)}
+        />
+      )}
 
       {/* Auth Modal */}
       <AuthModal

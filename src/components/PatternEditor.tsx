@@ -545,7 +545,7 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
       <div
         ref={scrollContainerRef}
         className={`flex-1 overflow-auto bg-slate-100/50 relative scrollbar-thin scrollbar-thumb-slate-300 min-h-0 ${toolMode === 'move' ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
-        style={{ touchAction: (toolMode === 'move' || toolMode === 'pencil' || toolMode === 'eraser') ? 'none' : 'auto' }}
+        style={{ touchAction: toolMode === 'move' ? 'none' : 'pan-x pan-y' }}
         onMouseDown={handleContainerMouseDown}
         onMouseMove={handleContainerMouseMove}
         onTouchStart={handleTouchStartPinch}
