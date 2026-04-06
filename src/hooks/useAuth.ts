@@ -62,25 +62,22 @@ export const useAuth = () => {
       return;
     }
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id, session.user.user_metadata);
-      }
-      setLoading(false);
-    }).catch(() => {
-      setLoading(false);
-    });
+    let mounted = true;
 
-    // Subscribe to changes
+    // Subscribe to auth changes FIRST (catches the OAuth redirect)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        if (!mounted) return;
+        console.log('[Auth] event:', event, 'user:', session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          await fetchProfile(session.user.id, session.user.user_metadata);
+          // Use setTimeout to avoid Supabase deadlock on initial SIGNED_IN
+          setTimeout(() => {
+            if (mounted) {
+              fetchProfile(session.user.id, session.user.user_metadata);
+            }
+          }, 0);
         } else {
           setProfile(null);
         }
@@ -88,7 +85,24 @@ export const useAuth = () => {
       }
     );
 
-    return () => subscription.unsubscribe();
+    // Then get the initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      console.log('[Auth] initial session:', session?.user?.email || 'none');
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user.id, session.user.user_metadata);
+      }
+      setLoading(false);
+    }).catch(() => {
+      if (mounted) setLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [fetchProfile]);
 
   // Sign up with email
