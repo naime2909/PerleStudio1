@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseConfigured } from '../lib/supabase';
 import { ProjectState, BeadType, ProjectSettings } from '../types';
 
 export interface CloudProject {
@@ -25,7 +25,7 @@ export const useCloudStorage = (userId: string | undefined) => {
   // ========================
 
   const loadProjects = useCallback(async (): Promise<CloudProject[]> => {
-    if (!userId) return [];
+    if (!userId || !supabaseConfigured) return [];
 
     const { data, error } = await supabase
       .from('projects')
@@ -49,6 +49,8 @@ export const useCloudStorage = (userId: string | undefined) => {
     existingId?: string
   ): Promise<CloudProject | null> => {
     if (!userId) return null;
+
+    if (!supabaseConfigured) return null;
 
     if (existingId) {
       // Update
@@ -95,7 +97,7 @@ export const useCloudStorage = (userId: string | undefined) => {
   }, [userId]);
 
   const deleteProject = useCallback(async (projectId: string) => {
-    if (!userId) return false;
+    if (!userId || !supabaseConfigured) return false;
 
     const { error } = await supabase
       .from('projects')
@@ -111,7 +113,7 @@ export const useCloudStorage = (userId: string | undefined) => {
   }, [userId]);
 
   const renameProject = useCallback(async (projectId: string, newName: string) => {
-    if (!userId) return false;
+    if (!userId || !supabaseConfigured) return false;
 
     const { error } = await supabase
       .from('projects')
@@ -131,7 +133,7 @@ export const useCloudStorage = (userId: string | undefined) => {
   // ========================
 
   const searchUsers = useCallback(async (query: string) => {
-    if (!userId || query.length < 2) return [];
+    if (!userId || !supabaseConfigured || query.length < 2) return [];
 
     const { data, error } = await supabase
       .from('profiles')
@@ -148,7 +150,7 @@ export const useCloudStorage = (userId: string | undefined) => {
   }, [userId]);
 
   const sendFriendRequest = useCallback(async (addresseeId: string) => {
-    if (!userId) return false;
+    if (!userId || !supabaseConfigured) return false;
 
     const { error } = await supabase
       .from('friendships')
@@ -166,7 +168,7 @@ export const useCloudStorage = (userId: string | undefined) => {
   }, [userId]);
 
   const respondToFriendRequest = useCallback(async (friendshipId: string, accept: boolean) => {
-    if (!userId) return false;
+    if (!userId || !supabaseConfigured) return false;
 
     const { error } = await supabase
       .from('friendships')
@@ -182,7 +184,7 @@ export const useCloudStorage = (userId: string | undefined) => {
   }, [userId]);
 
   const removeFriend = useCallback(async (friendshipId: string) => {
-    if (!userId) return false;
+    if (!userId || !supabaseConfigured) return false;
 
     const { error } = await supabase
       .from('friendships')
@@ -197,7 +199,7 @@ export const useCloudStorage = (userId: string | undefined) => {
   }, [userId]);
 
   const getFriends = useCallback(async () => {
-    if (!userId) return [];
+    if (!userId || !supabaseConfigured) return [];
 
     const { data, error } = await supabase
       .from('friendships')
@@ -225,7 +227,7 @@ export const useCloudStorage = (userId: string | undefined) => {
   // ========================
 
   const shareProject = useCallback(async (projectId: string, friendUserId: string) => {
-    if (!userId) return false;
+    if (!userId || !supabaseConfigured) return false;
 
     const { error } = await supabase
       .from('shared_projects')
@@ -243,7 +245,7 @@ export const useCloudStorage = (userId: string | undefined) => {
   }, [userId]);
 
   const getSharedWithMe = useCallback(async (): Promise<SharedProjectWithDetails[]> => {
-    if (!userId) return [];
+    if (!userId || !supabaseConfigured) return [];
 
     const { data, error } = await supabase
       .from('shared_projects')
@@ -270,7 +272,7 @@ export const useCloudStorage = (userId: string | undefined) => {
   }, [userId]);
 
   const unshareProject = useCallback(async (projectId: string, sharedWithId: string) => {
-    if (!userId) return false;
+    if (!userId || !supabaseConfigured) return false;
 
     const { error } = await supabase
       .from('shared_projects')

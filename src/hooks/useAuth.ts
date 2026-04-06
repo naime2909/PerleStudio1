@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseConfigured } from '../lib/supabase';
 import type { User, Session } from '@supabase/supabase-js';
 
 export interface Profile {
@@ -18,6 +18,7 @@ export const useAuth = () => {
 
   // Fetch profile from DB
   const fetchProfile = useCallback(async (userId: string) => {
+    if (!supabaseConfigured) return null;
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -34,6 +35,11 @@ export const useAuth = () => {
 
   // Listen to auth changes
   useEffect(() => {
+    if (!supabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
