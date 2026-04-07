@@ -212,38 +212,40 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({
               const profile = getFriendProfile(f);
               const friendUserId = f.requester_id === userId ? f.addressee_id : f.requester_id;
               return (
-                <div key={f.id} className="flex items-center justify-between p-2 bg-white border border-slate-200 rounded-lg">
-                  <span className="font-semibold text-sm text-slate-800">{profile?.username || 'Utilisateur'}</span>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => setShowShareModal(showShareModal === friendUserId ? null : friendUserId)}
-                      className="p-1.5 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200"
-                      title="Partager un projet"
-                    >
-                      <Share2 size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleRemove(f.id)}
-                      className="p-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"
-                      title="Supprimer"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                <div key={f.id} className="relative p-2 bg-white border border-slate-200 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-sm text-slate-800">{profile?.username || 'Utilisateur'}</span>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => setShowShareModal(showShareModal === friendUserId ? null : friendUserId)}
+                        className={`p-1.5 rounded-lg ${showShareModal === friendUserId ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'}`}
+                        title="Partager un projet"
+                      >
+                        <Share2 size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleRemove(f.id)}
+                        className="p-1.5 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"
+                        title="Supprimer"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Share dropdown */}
                   {showShareModal === friendUserId && (
-                    <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-2 z-10 w-56">
+                    <div className="mt-2 bg-slate-50 border border-slate-200 rounded-lg p-2">
                       <p className="text-xs font-bold text-slate-500 mb-2">Partager un projet :</p>
                       {cloudProjects.length === 0 ? (
-                        <p className="text-xs text-slate-400 italic">Aucun projet sauvegardé</p>
+                        <p className="text-xs text-slate-400 italic">Aucun projet sauvegardé dans le cloud</p>
                       ) : (
                         <div className="space-y-1 max-h-40 overflow-y-auto">
                           {cloudProjects.map(p => (
                             <button
                               key={p.id}
                               onClick={() => handleShare(p.id, friendUserId)}
-                              className="w-full text-left px-2 py-1.5 text-xs bg-slate-50 rounded hover:bg-indigo-50 hover:text-indigo-700 truncate"
+                              className="w-full text-left px-2 py-1.5 text-xs bg-white border border-slate-100 rounded hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 truncate"
                             >
                               {p.name}
                             </button>
