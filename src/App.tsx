@@ -1649,20 +1649,13 @@ const App: React.FC = () => {
             setActiveTab('editor');
           }}
           onInsertTemplate={(templateGrid, templateRows, templateColumns) => {
-            // Merge template into current grid without replacing existing beads
-            const mergedGrid = { ...project.grid };
-            Object.entries(templateGrid).forEach(([key, beadId]) => {
-              mergedGrid[key] = beadId;
+            // Put template into clipboard and switch to paste mode
+            setClipboard({
+              width: templateColumns,
+              height: templateRows,
+              grid: templateGrid,
             });
-            // Expand grid if template is larger
-            const newRows = Math.max(project.rows, templateRows);
-            const newColumns = Math.max(project.columns, templateColumns);
-            pushToHistory({
-              ...project,
-              grid: mergedGrid,
-              rows: newRows,
-              columns: newColumns,
-            });
+            setToolMode('paste');
             setActiveTab('editor');
           }}
         />
