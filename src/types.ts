@@ -56,6 +56,8 @@ export interface ProjectSettings {
 // Backward compatibility alias
 export type BraceletSettings = ProjectSettings;
 
+export type ProjectVisibility = 'private' | 'public' | 'showcased';
+
 export type ToolMode = 'pencil' | 'eraser' | 'rectangle' | 'circle' | 'move' | 'polygon' | 'select' | 'paste';
 
 export interface SelectionArea {

@@ -9,6 +9,7 @@ interface ProfilePageProps {
   userEmail: string;
   userCreatedAt: string;
   onUpdateUsername: (name: string) => Promise<any>;
+  onUpdateBio: (bio: string) => Promise<boolean>;
   onLogout: () => Promise<void>;
   onProfileUpdate: (profile: Profile) => void;
 }
@@ -18,6 +19,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   userEmail,
   userCreatedAt,
   onUpdateUsername,
+  onUpdateBio,
   onLogout,
   onProfileUpdate,
 }) => {
@@ -28,6 +30,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   const [uploadError, setUploadError] = useState('');
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [editingBio, setEditingBio] = useState(false);
+  const [newBio, setNewBio] = useState('');
+  const [bioSaving, setBioSaving] = useState(false);
 
   const handleSaveUsername = async () => {
     if (newUsername.length < 3) {
@@ -282,6 +287,66 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                 </button>
               </div>
             )}
+
+            {/* Bio */}
+            <div className="mt-3">
+              {editingBio ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={newBio}
+                    onChange={(e) => setNewBio(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                    placeholder="Décris-toi en quelques mots..."
+                    rows={3}
+                    maxLength={300}
+                    autoFocus
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400">{newBio.length}/300</span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={async () => {
+                          setBioSaving(true);
+                          const ok = await onUpdateBio(newBio);
+                          setBioSaving(false);
+                          if (ok) {
+                            setEditingBio(false);
+                            onProfileUpdate({ ...profile, bio: newBio });
+                          }
+                        }}
+                        disabled={bioSaving}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        <Check size={14} /> {bioSaving ? '...' : 'Sauvegarder'}
+                      </button>
+                      <button
+                        onClick={() => setEditingBio(false)}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-300"
+                      >
+                        <X size={14} /> Annuler
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => { setEditingBio(true); setNewBio(profile.bio || ''); }}
+                  className="group cursor-pointer"
+                >
+                  {profile.bio ? (
+                    <p className="text-sm text-slate-600 bg-slate-50 rounded-lg p-3 border border-slate-100 group-hover:border-indigo-200 transition-colors">
+                      {profile.bio}
+                      <Edit3 size={12} className="inline ml-2 text-slate-400 group-hover:text-indigo-500" />
+                    </p>
+                  ) : (
+                    <p className="text-sm text-slate-400 italic bg-slate-50 rounded-lg p-3 border border-dashed border-slate-200 group-hover:border-indigo-300 transition-colors">
+                      Ajoute une description pour les visiteurs de ton profil...
+                      <Edit3 size={12} className="inline ml-2" />
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

@@ -12,6 +12,7 @@ interface FriendsPanelProps {
   getFriends: () => Promise<any[]>;
   shareProject: (projectId: string, friendUserId: string) => Promise<boolean>;
   cloudProjects: CloudProject[];
+  onViewProfile?: (userId: string) => void;
 }
 
 const FriendsPanel: React.FC<FriendsPanelProps> = ({
@@ -23,6 +24,7 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({
   getFriends,
   shareProject,
   cloudProjects,
+  onViewProfile,
 }) => {
   const [friends, setFriends] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -162,7 +164,12 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({
             {searchResults.map((user: any) => (
               <div key={user.id} className="flex items-center justify-between p-3">
                 <div>
-                  <span className="font-semibold text-sm text-slate-800">{user.username}</span>
+                  <button
+                    onClick={() => onViewProfile?.(user.id)}
+                    className="font-semibold text-sm text-slate-800 hover:text-indigo-600 transition-colors"
+                  >
+                    {user.username}
+                  </button>
                 </div>
                 <button
                   onClick={() => handleSendRequest(user.id)}
@@ -259,7 +266,7 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({
               return (
                 <div key={f.id} className="relative p-2 bg-white border border-slate-200 rounded-lg">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm text-slate-800">{profile?.username || 'Utilisateur'}</span>
+                    <button onClick={() => onViewProfile?.(friendUserId)} className="font-semibold text-sm text-slate-800 hover:text-indigo-600 transition-colors">{profile?.username || 'Utilisateur'}</button>
                     <div className="flex gap-1">
                       <button
                         onClick={() => setShowShareModal(showShareModal === friendUserId ? null : friendUserId)}

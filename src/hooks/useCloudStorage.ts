@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { supabase, supabaseConfigured } from '../lib/supabase';
-import { ProjectState, BeadType, ProjectSettings } from '../types';
+import { ProjectState, BeadType, ProjectSettings, ProjectVisibility } from '../types';
 
 export interface UserTemplate {
   id: string;
@@ -33,6 +33,31 @@ export interface CloudProject {
 
 export interface SharedProjectWithDetails extends CloudProject {
   shared_by_username: string;
+}
+
+export interface ShowcaseProject {
+  id: string;
+  user_id: string;
+  name: string;
+  project_data: ProjectState;
+  beads_data: BeadType[] | null;
+  settings_data: ProjectSettings | null;
+  thumbnail: string | null;
+  created_at: string;
+  updated_at: string;
+  author_username: string;
+  author_avatar: string | null;
+  like_count: number;
+  copy_count: number;
+  is_liked_by_me: boolean;
+}
+
+export interface PublicProfile {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  bio: string;
+  created_at: string;
 }
 
 export const useCloudStorage = (userId: string | undefined) => {
@@ -421,13 +446,13 @@ export const useCloudStorage = (userId: string | undefined) => {
     return data;
   }, []);
 
-  // Toggle public sharing on a project
+  // Toggle public sharing on a project (legacy)
   const setProjectPublic = useCallback(async (projectId: string, isPublic: boolean) => {
     if (!userId || !supabaseConfigured) return false;
 
     const { error } = await supabase
       .from('projects')
-      .update({ is_public: isPublic })
+      .update({ is_public: isPublic, visibility: isPublic ? 'public' : 'private' })
       .eq('id', projectId)
       .eq('user_id', userId);
 
@@ -437,6 +462,267 @@ export const useCloudStorage = (userId: string | undefined) => {
     }
     return true;
   }, [userId]);
+
+  // ========================
+  // SHOWCASE / VITRINE
+  // ========================
+
+  const setProjectVisibility = useCallback(async (projectId: string, visibility: ProjectVisibility) => {
+    if (!userId || !supabaseConfigured) return false;
+
+    const { error } = await supabase
+      .from('projects')
+      .update({ visibility })
+      .eq('id', projectId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error setting project visibility:', error);
+      return false;
+    }
+    return true;
+  }, [userId]);
+
+  const getShowcaseProjects = useCallback(async (sortBy: 'recent' | 'popular' = 'recent'): Promise<ShowcaseProject[]> => {
+    if (!supabaseConfigured) return [];
+
+    // Get showcased projects with author info
+    const { data: projects, error } = await supabase
+      .from('projects')
+      .select(`
+        id, user_id, name, project_data, beads_data, settings_data, thumbnail, created_at, updated_at,
+        author:profiles!projects_user_id_fkey(username, avatar_url)
+      `)
+      .eq('visibility', 'showcased')
+      .order(sortBy === 'recent' ? 'updated_at' : 'created_at', { ascending: false });
+
+    if (error || !projects) {
+      console.error('Error loading showcase:', error);
+      return [];
+    }
+
+    // Get like counts
+    const projectIds = projects.map(p => p.id);
+    const { data: likes } = await supabase
+      .from('showcase_likes')
+      .select('project_id')
+      .in('project_id', projectIds);
+
+    // Get copy counts
+    const { data: copies } = await supabase
+      .from('showcase_copies')
+      .select('source_project_id')
+      .in('source_project_id', projectIds);
+
+    // Get current user's likes
+    let myLikes: string[] = [];
+    if (userId) {
+      const { data: myLikeData } = await supabase
+        .from('showcase_likes')
+        .select('project_id')
+        .eq('user_id', userId)
+        .in('project_id', projectIds);
+      myLikes = (myLikeData || []).map(l => l.project_id);
+    }
+
+    // Count per project
+    const likeCounts: Record<string, number> = {};
+    const copyCounts: Record<string, number> = {};
+    (likes || []).forEach(l => { likeCounts[l.project_id] = (likeCounts[l.project_id] || 0) + 1; });
+    (copies || []).forEach(c => { copyCounts[c.source_project_id] = (copyCounts[c.source_project_id] || 0) + 1; });
+
+    const result: ShowcaseProject[] = projects.map((p: any) => ({
+      id: p.id,
+      user_id: p.user_id,
+      name: p.name,
+      project_data: p.project_data,
+      beads_data: p.beads_data,
+      settings_data: p.settings_data,
+      thumbnail: p.thumbnail,
+      created_at: p.created_at,
+      updated_at: p.updated_at,
+      author_username: p.author?.username || 'Inconnu',
+      author_avatar: p.author?.avatar_url || null,
+      like_count: likeCounts[p.id] || 0,
+      copy_count: copyCounts[p.id] || 0,
+      is_liked_by_me: myLikes.includes(p.id),
+    }));
+
+    // Sort by popularity if requested
+    if (sortBy === 'popular') {
+      result.sort((a, b) => (b.like_count + b.copy_count) - (a.like_count + a.copy_count));
+    }
+
+    return result;
+  }, [userId]);
+
+  const toggleLike = useCallback(async (projectId: string): Promise<{ liked: boolean; newCount: number } | null> => {
+    if (!userId || !supabaseConfigured) return null;
+
+    // Check if already liked
+    const { data: existing } = await supabase
+      .from('showcase_likes')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      // Unlike
+      await supabase.from('showcase_likes').delete().eq('id', existing[0].id);
+      const { count } = await supabase.from('showcase_likes').select('id', { count: 'exact', head: true }).eq('project_id', projectId);
+      return { liked: false, newCount: count || 0 };
+    } else {
+      // Like
+      await supabase.from('showcase_likes').insert({ project_id: projectId, user_id: userId });
+      const { count } = await supabase.from('showcase_likes').select('id', { count: 'exact', head: true }).eq('project_id', projectId);
+      return { liked: true, newCount: count || 0 };
+    }
+  }, [userId]);
+
+  const copyShowcaseProject = useCallback(async (project: ShowcaseProject): Promise<CloudProject | null> => {
+    if (!userId || !supabaseConfigured) return null;
+
+    // Create a copy of the project for the current user
+    const { data: newProject, error } = await supabase
+      .from('projects')
+      .insert({
+        user_id: userId,
+        name: `${project.name} (copie)`,
+        project_data: project.project_data,
+        beads_data: project.beads_data,
+        settings_data: project.settings_data,
+        thumbnail: project.thumbnail,
+        visibility: 'private',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error copying project:', error);
+      return null;
+    }
+
+    // Track the copy
+    await supabase.from('showcase_copies').insert({
+      source_project_id: project.id,
+      copied_by: userId,
+    });
+
+    return newProject;
+  }, [userId]);
+
+  const getPublicProfile = useCallback(async (profileId: string): Promise<PublicProfile | null> => {
+    if (!supabaseConfigured) return null;
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url, bio, created_at')
+      .eq('id', profileId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching public profile:', error);
+      return null;
+    }
+    return profile;
+  }, []);
+
+  const getPublicProjects = useCallback(async (profileId: string): Promise<ShowcaseProject[]> => {
+    if (!supabaseConfigured) return [];
+
+    const { data: projects, error } = await supabase
+      .from('projects')
+      .select(`
+        id, user_id, name, project_data, beads_data, settings_data, thumbnail, created_at, updated_at,
+        author:profiles!projects_user_id_fkey(username, avatar_url)
+      `)
+      .eq('user_id', profileId)
+      .in('visibility', ['public', 'showcased'])
+      .order('updated_at', { ascending: false });
+
+    if (error || !projects) return [];
+
+    const projectIds = projects.map(p => p.id);
+
+    const { data: likes } = await supabase
+      .from('showcase_likes')
+      .select('project_id')
+      .in('project_id', projectIds);
+
+    const { data: copies } = await supabase
+      .from('showcase_copies')
+      .select('source_project_id')
+      .in('source_project_id', projectIds);
+
+    let myLikes: string[] = [];
+    if (userId) {
+      const { data: myLikeData } = await supabase
+        .from('showcase_likes')
+        .select('project_id')
+        .eq('user_id', userId)
+        .in('project_id', projectIds);
+      myLikes = (myLikeData || []).map(l => l.project_id);
+    }
+
+    const likeCounts: Record<string, number> = {};
+    const copyCounts: Record<string, number> = {};
+    (likes || []).forEach((l: any) => { likeCounts[l.project_id] = (likeCounts[l.project_id] || 0) + 1; });
+    (copies || []).forEach((c: any) => { copyCounts[c.source_project_id] = (copyCounts[c.source_project_id] || 0) + 1; });
+
+    return projects.map((p: any) => ({
+      id: p.id,
+      user_id: p.user_id,
+      name: p.name,
+      project_data: p.project_data,
+      beads_data: p.beads_data,
+      settings_data: p.settings_data,
+      thumbnail: p.thumbnail,
+      created_at: p.created_at,
+      updated_at: p.updated_at,
+      author_username: p.author?.username || 'Inconnu',
+      author_avatar: p.author?.avatar_url || null,
+      like_count: likeCounts[p.id] || 0,
+      copy_count: copyCounts[p.id] || 0,
+      is_liked_by_me: myLikes.includes(p.id),
+    }));
+  }, [userId]);
+
+  const updateBio = useCallback(async (bio: string): Promise<boolean> => {
+    if (!userId || !supabaseConfigured) return false;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ bio })
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Error updating bio:', error);
+      return false;
+    }
+    return true;
+  }, [userId]);
+
+  const getProjectStats = useCallback(async (projectIds: string[]): Promise<Record<string, { likes: number; copies: number }>> => {
+    if (!supabaseConfigured || projectIds.length === 0) return {};
+
+    const { data: likes } = await supabase
+      .from('showcase_likes')
+      .select('project_id')
+      .in('project_id', projectIds);
+
+    const { data: copies } = await supabase
+      .from('showcase_copies')
+      .select('source_project_id')
+      .in('source_project_id', projectIds);
+
+    const stats: Record<string, { likes: number; copies: number }> = {};
+    projectIds.forEach(id => { stats[id] = { likes: 0, copies: 0 }; });
+    (likes || []).forEach((l: any) => { if (stats[l.project_id]) stats[l.project_id].likes++; });
+    (copies || []).forEach((c: any) => { if (stats[c.source_project_id]) stats[c.source_project_id].copies++; });
+
+    return stats;
+  }, []);
 
   return {
     // Projects
@@ -458,6 +744,15 @@ export const useCloudStorage = (userId: string | undefined) => {
     getProjectById,
     getProfileById,
     setProjectPublic,
+    // Showcase / Vitrine
+    setProjectVisibility,
+    getShowcaseProjects,
+    toggleLike,
+    copyShowcaseProject,
+    getPublicProfile,
+    getPublicProjects,
+    updateBio,
+    getProjectStats,
     // Templates
     loadTemplates,
     saveTemplate,

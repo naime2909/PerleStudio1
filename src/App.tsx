@@ -14,6 +14,8 @@ import ProfileButton from './components/ProfileButton';
 import FriendsPanel from './components/FriendsPanel';
 import SharedProjectsPanel from './components/SharedProjectsPanel';
 import ProfilePage from './components/ProfilePage';
+import ShowcaseGallery from './components/ShowcaseGallery';
+import PublicProfilePage from './components/PublicProfilePage';
 import TextToBeadsModal from './components/TextToBeadsModal';
 import SaveModal from './components/SaveModal';
 import { useAuth } from './hooks/useAuth';
@@ -93,7 +95,9 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Tab system
-  const [activeTab, setActiveTab] = useState<'editor' | 'templates' | 'convert' | 'projects' | 'friends' | 'shared' | 'profile' | 'settings'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'templates' | 'convert' | 'projects' | 'friends' | 'shared' | 'profile' | 'settings' | 'showcase' | 'public-profile'>('editor');
+  const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
+  const [projectStats, setProjectStats] = useState<Record<string, { likes: number; copies: number }>>({});
   
   // Project name & auto-save
   const [projectName, setProjectName] = useState('Sans titre');
@@ -670,6 +674,11 @@ const App: React.FC = () => {
   };
 
   // Load a cloud project
+  const handleViewProfile = (profileId: string) => {
+    setViewingProfileId(profileId);
+    setActiveTab('public-profile');
+  };
+
   const handleLoadCloudProject = (cp: CloudProject) => {
     setHistory([migrateProject(cp.project_data)]);
     setHistoryIndex(0);
@@ -742,12 +751,20 @@ const App: React.FC = () => {
   // Load cloud projects and templates when user logs in
   useEffect(() => {
     if (auth.user) {
-      cloud.loadProjects().then(setCloudProjects);
+      cloud.loadProjects().then((projects) => {
+        setCloudProjects(projects);
+        // Load stats for showcased projects
+        const showcasedIds = projects.filter((p: any) => p.visibility === 'showcased').map((p: any) => p.id);
+        if (showcasedIds.length > 0) {
+          cloud.getProjectStats(showcasedIds).then(setProjectStats);
+        }
+      });
       cloud.loadTemplates().then(setUserTemplates);
     } else {
       setCloudProjects([]);
       setCurrentCloudId(undefined);
       setUserTemplates([]);
+      setProjectStats({});
     }
   }, [auth.user]);
 
@@ -936,6 +953,16 @@ const App: React.FC = () => {
           }`}
         >
           📁 Mes Projets
+        </button>
+        <button
+          onClick={() => setActiveTab('showcase')}
+          className={`px-2 lg:px-4 py-2 lg:py-3 font-semibold text-xs lg:text-sm whitespace-nowrap border-b-2 transition-colors ${
+            activeTab === 'showcase'
+              ? 'border-amber-500 text-amber-600'
+              : 'border-transparent text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          ✨ Vitrine
         </button>
         {auth.user && (
           <button
@@ -1644,9 +1671,61 @@ const App: React.FC = () => {
             return ok;
           }}
           onSetProjectPublic={cloud.setProjectPublic}
+          onSetProjectVisibility={async (id, visibility) => {
+            const ok = await cloud.setProjectVisibility(id, visibility);
+            if (ok) {
+              const updated = await cloud.loadProjects();
+              setCloudProjects(updated);
+              const showcasedIds = updated.filter((p: any) => p.visibility === 'showcased').map((p: any) => p.id);
+              if (showcasedIds.length > 0) {
+                cloud.getProjectStats(showcasedIds).then(setProjectStats);
+              }
+            }
+            return ok;
+          }}
+          projectStats={projectStats}
           isLoggedIn={!!auth.user}
         />
       </div>
+
+      {/* SHOWCASE TAB */}
+      <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'showcase' ? 'flex' : 'none' }}>
+        <ShowcaseGallery
+          userId={auth.user?.id}
+          getShowcaseProjects={cloud.getShowcaseProjects}
+          toggleLike={cloud.toggleLike}
+          copyShowcaseProject={async (project) => {
+            const newProject = await cloud.copyShowcaseProject(project);
+            if (newProject) {
+              const updated = await cloud.loadProjects();
+              setCloudProjects(updated);
+            }
+            return newProject;
+          }}
+          onViewProfile={handleViewProfile}
+          onLoadProject={handleLoadProject}
+          onRequireLogin={() => setShowAuthModal(true)}
+          isLoggedIn={!!auth.user}
+        />
+      </div>
+
+      {/* PUBLIC PROFILE TAB */}
+      {viewingProfileId && (
+        <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'public-profile' ? 'block' : 'none' }}>
+          <PublicProfilePage
+            profileId={viewingProfileId}
+            currentUserId={auth.user?.id}
+            getPublicProfile={cloud.getPublicProfile}
+            getPublicProjects={cloud.getPublicProjects}
+            sendFriendRequest={cloud.sendFriendRequest}
+            getFriends={cloud.getFriends}
+            onLoadProject={handleLoadProject}
+            onBack={() => setActiveTab('showcase')}
+            onRequireLogin={() => setShowAuthModal(true)}
+            isLoggedIn={!!auth.user}
+          />
+        </div>
+      )}
 
       {/* PROFILE TAB */}
       {auth.user && (
@@ -1656,6 +1735,7 @@ const App: React.FC = () => {
             userEmail={auth.user.email || ''}
             userCreatedAt={auth.user.created_at || ''}
             onUpdateUsername={auth.updateUsername}
+            onUpdateBio={cloud.updateBio}
             onLogout={async () => {
               await auth.signOut();
               setActiveTab('editor');
@@ -1679,6 +1759,7 @@ const App: React.FC = () => {
             getFriends={cloud.getFriends}
             shareProject={cloud.shareProject}
             cloudProjects={cloudProjects}
+            onViewProfile={handleViewProfile}
           />
         </div>
       )}

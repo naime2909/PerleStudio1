@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { SavedProject, useLocalStorage } from '../useLocalStorage';
-import { Folder, Trash2, Edit2, Download, Upload, Plus, Clock, Cloud, Monitor, Link, Check } from 'lucide-react';
-import { ProjectState, BeadType } from '../types';
+import { Folder, Trash2, Edit2, Download, Upload, Plus, Clock, Cloud, Monitor, Link, Check, Eye, EyeOff, Heart, Copy, Sparkles } from 'lucide-react';
+import { ProjectState, BeadType, ProjectVisibility } from '../types';
 import type { CloudProject } from '../hooks/useCloudStorage';
 
 interface ProjectsPanelProps {
@@ -12,10 +12,12 @@ interface ProjectsPanelProps {
   onDeleteCloudProject?: (id: string) => Promise<boolean>;
   onRenameCloudProject?: (id: string, name: string) => Promise<boolean>;
   onSetProjectPublic?: (id: string, isPublic: boolean) => Promise<boolean>;
+  onSetProjectVisibility?: (id: string, visibility: ProjectVisibility) => Promise<boolean>;
+  projectStats?: Record<string, { likes: number; copies: number }>;
   isLoggedIn?: boolean;
 }
 
-const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProject, cloudProjects = [], onLoadCloudProject, onDeleteCloudProject, onRenameCloudProject, onSetProjectPublic, isLoggedIn = false }) => {
+const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProject, cloudProjects = [], onLoadCloudProject, onDeleteCloudProject, onRenameCloudProject, onSetProjectPublic, onSetProjectVisibility, projectStats = {}, isLoggedIn = false }) => {
   const storage = useLocalStorage();
   const [projects, setProjects] = useState<SavedProject[]>(storage.loadProjects());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -92,6 +94,17 @@ const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProje
       setCopiedLinkId(cp.id);
       setTimeout(() => setCopiedLinkId(null), 2000);
     });
+  };
+
+  const [togglingShowcase, setTogglingShowcase] = useState<string | null>(null);
+
+  const handleToggleShowcase = async (cp: CloudProject) => {
+    if (!onSetProjectVisibility) return;
+    setTogglingShowcase(cp.id);
+    const currentVisibility = (cp as any).visibility || 'private';
+    const newVisibility: ProjectVisibility = currentVisibility === 'showcased' ? 'private' : 'showcased';
+    await onSetProjectVisibility(cp.id, newVisibility);
+    setTogglingShowcase(null);
   };
 
   const handleDeleteCloud = async (id: string, name: string) => {
@@ -189,7 +202,7 @@ const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProje
                 >
                   <div
                     onClick={() => onLoadCloudProject?.(cp)}
-                    className="bg-gradient-to-br from-indigo-50 to-purple-50 h-32 flex items-center justify-center overflow-hidden"
+                    className="bg-gradient-to-br from-indigo-50 to-purple-50 h-32 flex items-center justify-center overflow-hidden relative"
                   >
                     {cp.thumbnail ? (
                       <img src={cp.thumbnail} alt={cp.name} className="w-full h-full object-contain" />
@@ -197,6 +210,11 @@ const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProje
                       <div className="text-center">
                         <Cloud size={32} className="text-indigo-300 mx-auto mb-1" />
                         <p className="text-xs text-indigo-400">{cp.project_data.columns}x{cp.project_data.rows}</p>
+                      </div>
+                    )}
+                    {(cp as any).visibility === 'showcased' && (
+                      <div className="absolute top-2 right-2 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                        <Sparkles size={10} /> Vitrine
                       </div>
                     )}
                   </div>
@@ -230,16 +248,42 @@ const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProje
                       {formatDateCloud(cp.updated_at)}
                     </div>
 
-                    <div className="text-xs text-slate-600 mb-3">
+                    <div className="text-xs text-slate-600 mb-2">
                       {cp.project_data.columns} × {cp.project_data.rows} • {cp.project_data.mode}
                     </div>
 
-                    <div className="flex gap-1">
+                    {/* Stats (for showcased projects) */}
+                    {(cp as any).visibility === 'showcased' && projectStats[cp.id] && (
+                      <div className="flex items-center gap-3 text-xs text-slate-500 mb-2 px-1">
+                        <span className="flex items-center gap-1">
+                          <Heart size={12} className="text-red-400" />
+                          {projectStats[cp.id].likes}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Copy size={12} className="text-indigo-400" />
+                          {projectStats[cp.id].copies}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex gap-1 flex-wrap">
                       <button
                         onClick={() => onLoadCloudProject?.(cp)}
                         className="flex-1 px-2 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded transition-colors"
                       >
                         Ouvrir
+                      </button>
+                      <button
+                        onClick={() => handleToggleShowcase(cp)}
+                        disabled={togglingShowcase === cp.id}
+                        className={`px-2 py-1.5 rounded transition-colors text-xs font-semibold ${
+                          (cp as any).visibility === 'showcased'
+                            ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                            : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
+                        } disabled:opacity-50`}
+                        title={(cp as any).visibility === 'showcased' ? 'Retirer de la vitrine' : 'Publier dans la vitrine'}
+                      >
+                        {(cp as any).visibility === 'showcased' ? <EyeOff size={14} /> : <Sparkles size={14} />}
                       </button>
                       <button
                         onClick={() => handleCopyShareLink(cp)}
