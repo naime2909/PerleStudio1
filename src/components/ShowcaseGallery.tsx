@@ -3,6 +3,7 @@ import { Heart, Copy, Search, TrendingUp, Clock, User, Eye, Sparkles, Grid } fro
 import type { ShowcaseProject } from '../hooks/useCloudStorage';
 import type { ProjectState, BeadType } from '../types';
 import ProjectPreviewModal from './ProjectPreviewModal';
+import MiniGridPreview from './MiniGridPreview';
 
 interface ShowcaseGalleryProps {
   userId?: string;
@@ -171,16 +172,14 @@ const ShowcaseGallery: React.FC<ShowcaseGalleryProps> = ({
                 className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-indigo-300 hover:shadow-xl transition-all group cursor-pointer"
                 onClick={() => setPreviewProject(project)}
               >
-                {/* Thumbnail */}
+                {/* Preview */}
                 <div className="bg-gradient-to-br from-slate-50 to-indigo-50 h-40 lg:h-44 flex items-center justify-center overflow-hidden relative">
-                  {project.thumbnail ? (
-                    <img src={project.thumbnail} alt={project.name} className="w-full h-full object-contain p-2" />
-                  ) : (
-                    <div className="text-center">
-                      <Eye size={36} className="text-slate-300 mx-auto mb-1" />
-                      <p className="text-xs text-slate-400">{project.project_data.columns}x{project.project_data.rows}</p>
-                    </div>
-                  )}
+                  <MiniGridPreview
+                    projectData={project.project_data}
+                    beadsData={project.beads_data}
+                    width={240}
+                    height={170}
+                  />
                   <div className="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/5 transition-colors" />
                 </div>
 

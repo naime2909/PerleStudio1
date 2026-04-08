@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { SavedProject, useLocalStorage } from '../useLocalStorage';
 import { Folder, Trash2, Edit2, Download, Upload, Plus, Clock, Cloud, Monitor, Link, Check, Eye, EyeOff, Heart, Copy, Sparkles } from 'lucide-react';
 import { ProjectState, BeadType, ProjectVisibility } from '../types';
+import MiniGridPreview from './MiniGridPreview';
 import type { CloudProject } from '../hooks/useCloudStorage';
 
 interface ProjectsPanelProps {
@@ -204,14 +205,12 @@ const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProje
                     onClick={() => onLoadCloudProject?.(cp)}
                     className="bg-gradient-to-br from-indigo-50 to-purple-50 h-32 flex items-center justify-center overflow-hidden relative"
                   >
-                    {cp.thumbnail ? (
-                      <img src={cp.thumbnail} alt={cp.name} className="w-full h-full object-contain" />
-                    ) : (
-                      <div className="text-center">
-                        <Cloud size={32} className="text-indigo-300 mx-auto mb-1" />
-                        <p className="text-xs text-indigo-400">{cp.project_data.columns}x{cp.project_data.rows}</p>
-                      </div>
-                    )}
+                    <MiniGridPreview
+                      projectData={cp.project_data}
+                      beadsData={cp.beads_data}
+                      width={220}
+                      height={128}
+                    />
                     {(cp as any).visibility === 'showcased' && (
                       <div className="absolute top-2 right-2 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                         <Sparkles size={10} /> Vitrine

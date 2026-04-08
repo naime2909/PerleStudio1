@@ -3,6 +3,7 @@ import { User, ArrowLeft, UserPlus, Check, Heart, Copy, Calendar, Eye, Clock } f
 import type { PublicProfile, ShowcaseProject } from '../hooks/useCloudStorage';
 import type { ProjectState, BeadType } from '../types';
 import ProjectPreviewModal from './ProjectPreviewModal';
+import MiniGridPreview from './MiniGridPreview';
 
 interface PublicProfilePageProps {
   profileId: string;
@@ -235,11 +236,12 @@ const PublicProfilePage: React.FC<PublicProfilePageProps> = ({
                   onClick={() => setPreviewProject(project)}
                 >
                   <div className="bg-gradient-to-br from-slate-50 to-indigo-50 h-32 flex items-center justify-center overflow-hidden relative">
-                    {project.thumbnail ? (
-                      <img src={project.thumbnail} alt={project.name} className="w-full h-full object-contain p-2" />
-                    ) : (
-                      <Eye size={32} className="text-slate-300" />
-                    )}
+                    <MiniGridPreview
+                      projectData={project.project_data}
+                      beadsData={project.beads_data}
+                      width={220}
+                      height={128}
+                    />
                     <div className="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/5 transition-colors" />
                   </div>
                   <div className="p-3">
