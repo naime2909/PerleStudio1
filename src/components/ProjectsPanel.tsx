@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SavedProject, useLocalStorage } from '../useLocalStorage';
-import { Folder, Trash2, Edit2, Download, Upload, Plus, Clock, Cloud, Monitor } from 'lucide-react';
+import { Folder, Trash2, Edit2, Download, Upload, Plus, Clock, Cloud, Monitor, Link, Check } from 'lucide-react';
 import { ProjectState, BeadType } from '../types';
 import type { CloudProject } from '../hooks/useCloudStorage';
 
@@ -11,10 +11,11 @@ interface ProjectsPanelProps {
   onLoadCloudProject?: (cp: CloudProject) => void;
   onDeleteCloudProject?: (id: string) => Promise<boolean>;
   onRenameCloudProject?: (id: string, name: string) => Promise<boolean>;
+  onSetProjectPublic?: (id: string, isPublic: boolean) => Promise<boolean>;
   isLoggedIn?: boolean;
 }
 
-const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProject, cloudProjects = [], onLoadCloudProject, onDeleteCloudProject, onRenameCloudProject, isLoggedIn = false }) => {
+const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProject, cloudProjects = [], onLoadCloudProject, onDeleteCloudProject, onRenameCloudProject, onSetProjectPublic, isLoggedIn = false }) => {
   const storage = useLocalStorage();
   const [projects, setProjects] = useState<SavedProject[]>(storage.loadProjects());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -79,6 +80,19 @@ const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProje
   const [viewMode, setViewMode] = useState<'local' | 'cloud'>(isLoggedIn ? 'cloud' : 'local');
   const [editingCloudId, setEditingCloudId] = useState<string | null>(null);
   const [editCloudName, setEditCloudName] = useState('');
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
+
+  const handleCopyShareLink = async (cp: CloudProject) => {
+    // Make project public first if needed
+    if (onSetProjectPublic) {
+      await onSetProjectPublic(cp.id, true);
+    }
+    const link = `${window.location.origin}?shared=${cp.id}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedLinkId(cp.id);
+      setTimeout(() => setCopiedLinkId(null), 2000);
+    });
+  };
 
   const handleDeleteCloud = async (id: string, name: string) => {
     if (onDeleteCloudProject && confirm(`Supprimer "${name}" du cloud ?`)) {
@@ -226,6 +240,17 @@ const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProje
                         className="flex-1 px-2 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded transition-colors"
                       >
                         Ouvrir
+                      </button>
+                      <button
+                        onClick={() => handleCopyShareLink(cp)}
+                        className={`px-2 py-1.5 rounded transition-colors ${
+                          copiedLinkId === cp.id
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-purple-50 hover:bg-purple-100 text-purple-600'
+                        }`}
+                        title={copiedLinkId === cp.id ? 'Lien copié !' : 'Partager par lien'}
+                      >
+                        {copiedLinkId === cp.id ? <Check size={14} /> : <Link size={14} />}
                       </button>
                       <button
                         onClick={() => { setEditingCloudId(cp.id); setEditCloudName(cp.name); }}

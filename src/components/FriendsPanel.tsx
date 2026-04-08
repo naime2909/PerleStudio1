@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, UserPlus, Check, X, Users, Clock, Trash2, Share2 } from 'lucide-react';
+import { Search, UserPlus, Check, X, Users, Clock, Trash2, Share2, Link, Copy } from 'lucide-react';
 import type { Profile } from '../hooks/useAuth';
 import type { CloudProject } from '../hooks/useCloudStorage';
 
@@ -96,11 +96,43 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({
     return friendship.requester;
   };
 
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const handleCopyInviteLink = () => {
+    const link = `${window.location.origin}?invite=${userId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  };
+
   return (
     <div className="p-4 space-y-4 overflow-y-auto h-full">
       <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
         <Users size={20} /> Amis
       </h2>
+
+      {/* Invite Link */}
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-3">
+        <p className="text-xs font-bold text-indigo-700 mb-2 flex items-center gap-1">
+          <Link size={14} /> Invite tes amis
+        </p>
+        <p className="text-xs text-indigo-600 mb-2">Partage ce lien pour ajouter un ami directement :</p>
+        <button
+          onClick={handleCopyInviteLink}
+          className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+            linkCopied
+              ? 'bg-green-600 text-white'
+              : 'bg-indigo-600 text-white hover:bg-indigo-700'
+          }`}
+        >
+          {linkCopied ? (
+            <><Check size={16} /> Lien copié !</>
+          ) : (
+            <><Copy size={16} /> Copier mon lien d'ami</>
+          )}
+        </button>
+      </div>
 
       {/* Search Users */}
       <div className="space-y-2">

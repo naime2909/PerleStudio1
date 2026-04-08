@@ -382,6 +382,61 @@ export const useCloudStorage = (userId: string | undefined) => {
     return true;
   }, [userId]);
 
+  // ========================
+  // PUBLIC LINK SHARING
+  // ========================
+
+  // Fetch a project by ID (for public link sharing — needs RLS policy)
+  const getProjectById = useCallback(async (projectId: string): Promise<CloudProject | null> => {
+    if (!supabaseConfigured) return null;
+
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching project by ID:', error);
+      return null;
+    }
+    return data;
+  }, []);
+
+  // Fetch a profile by ID (for invite links)
+  const getProfileById = useCallback(async (profileId: string) => {
+    if (!supabaseConfigured) return null;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url')
+      .eq('id', profileId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching profile:', error);
+      return null;
+    }
+    return data;
+  }, []);
+
+  // Toggle public sharing on a project
+  const setProjectPublic = useCallback(async (projectId: string, isPublic: boolean) => {
+    if (!userId || !supabaseConfigured) return false;
+
+    const { error } = await supabase
+      .from('projects')
+      .update({ is_public: isPublic })
+      .eq('id', projectId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error updating project visibility:', error);
+      return false;
+    }
+    return true;
+  }, [userId]);
+
   return {
     // Projects
     loadProjects,
@@ -398,6 +453,10 @@ export const useCloudStorage = (userId: string | undefined) => {
     shareProject,
     getSharedWithMe,
     unshareProject,
+    // Public links
+    getProjectById,
+    getProfileById,
+    setProjectPublic,
     // Templates
     loadTemplates,
     saveTemplate,

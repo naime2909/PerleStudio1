@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [currentCloudId, setCurrentCloudId] = useState<string | undefined>(undefined);
   const [cloudSaving, setCloudSaving] = useState(false);
   const [showNoAccountBanner, setShowNoAccountBanner] = useState(true);
+  const [inviteNotification, setInviteNotification] = useState<{type: 'invite' | 'shared', message: string} | null>(null);
 
   const [activeBeads, setActiveBeads] = useState<BeadType[]>(DEFAULT_BEADS);
 
@@ -749,6 +750,105 @@ const App: React.FC = () => {
       setUserTemplates([]);
     }
   }, [auth.user]);
+
+  // Handle URL parameters: ?invite=USER_ID or ?shared=PROJECT_ID
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const inviteId = params.get('invite');
+    const sharedId = params.get('shared');
+
+    if (inviteId || sharedId) {
+      // Clean URL without reloading
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    // Store for after login if not logged in
+    if (inviteId) {
+      if (!auth.user && !auth.loading) {
+        localStorage.setItem('perlestudio_pending_invite', inviteId);
+        setShowAuthModal(true);
+        setInviteNotification({ type: 'invite', message: 'Connecte-toi pour accepter l\'invitation !' });
+      }
+    }
+
+    if (sharedId) {
+      if (!auth.user && !auth.loading) {
+        localStorage.setItem('perlestudio_pending_shared', sharedId);
+        setShowAuthModal(true);
+        setInviteNotification({ type: 'shared', message: 'Connecte-toi pour voir le projet partagé !' });
+      }
+    }
+  }, [auth.loading]);
+
+  // Process pending invite/shared after login
+  useEffect(() => {
+    if (!auth.user) return;
+
+    const pendingInvite = localStorage.getItem('perlestudio_pending_invite');
+    const pendingShared = localStorage.getItem('perlestudio_pending_shared');
+
+    if (pendingInvite) {
+      localStorage.removeItem('perlestudio_pending_invite');
+      if (pendingInvite !== auth.user.id) {
+        cloud.sendFriendRequest(pendingInvite).then((ok) => {
+          if (ok) {
+            setInviteNotification({ type: 'invite', message: 'Demande d\'ami envoyée !' });
+            setTimeout(() => setInviteNotification(null), 3000);
+          }
+        });
+      }
+    }
+
+    if (pendingShared) {
+      localStorage.removeItem('perlestudio_pending_shared');
+      cloud.getProjectById(pendingShared).then((project) => {
+        if (project) {
+          if (confirm(`Voulez-vous ouvrir le projet "${project.name}" ?`)) {
+            handleLoadCloudProject(project);
+          }
+        } else {
+          setInviteNotification({ type: 'shared', message: 'Projet introuvable ou non partagé.' });
+          setTimeout(() => setInviteNotification(null), 3000);
+        }
+      });
+    }
+  }, [auth.user]);
+
+  // Also check URL params directly if already logged in
+  useEffect(() => {
+    if (!auth.user || auth.loading) return;
+    const params = new URLSearchParams(window.location.search);
+    const inviteId = params.get('invite');
+    const sharedId = params.get('shared');
+
+    if (inviteId) {
+      window.history.replaceState({}, '', window.location.pathname);
+      if (inviteId !== auth.user.id) {
+        cloud.getProfileById(inviteId).then((profile) => {
+          if (profile && confirm(`Ajouter "${profile.username}" en ami ?`)) {
+            cloud.sendFriendRequest(inviteId).then((ok) => {
+              if (ok) {
+                setInviteNotification({ type: 'invite', message: `Demande envoyée à ${profile.username} !` });
+                setTimeout(() => setInviteNotification(null), 3000);
+                setActiveTab('friends');
+              }
+            });
+          }
+        });
+      }
+    }
+
+    if (sharedId) {
+      window.history.replaceState({}, '', window.location.pathname);
+      cloud.getProjectById(sharedId).then((project) => {
+        if (project) {
+          if (confirm(`Ouvrir le projet "${project.name}" ?`)) {
+            handleLoadCloudProject(project);
+          }
+        }
+      });
+    }
+  }, [auth.user, auth.loading]);
 
   return (
     <div className="h-[100dvh] bg-slate-100 text-slate-800 font-sans flex flex-col overflow-hidden">
@@ -1551,6 +1651,7 @@ const App: React.FC = () => {
             }
             return ok;
           }}
+          onSetProjectPublic={cloud.setProjectPublic}
           isLoggedIn={!!auth.user}
         />
       </div>
@@ -1989,6 +2090,17 @@ const App: React.FC = () => {
         onSignUp={auth.signUp}
         onGoogleSignIn={auth.signInWithGoogle}
       />
+
+      {/* Invite/Share notification */}
+      {inviteNotification && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-indigo-600 text-white rounded-xl shadow-lg px-4 py-3 flex items-center gap-2 max-w-sm animate-fade-in">
+          {inviteNotification.type === 'invite' ? <Users size={18} /> : <Share2 size={18} />}
+          <p className="text-sm font-semibold">{inviteNotification.message}</p>
+          <button onClick={() => setInviteNotification(null)} className="p-1 hover:bg-white/20 rounded-full ml-auto">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Banner: not logged in */}
       {!auth.user && !auth.loading && showNoAccountBanner && activeTab === 'editor' && (
