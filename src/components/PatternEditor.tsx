@@ -621,17 +621,7 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
       const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
 
-      // Pinch zoom
-      if (lastPinchDist.current !== null && onZoomChange) {
-        const delta = dist - lastPinchDist.current;
-        if (Math.abs(delta) > 3) {
-          const newZoom = Math.min(3, Math.max(0.1, zoomLevel + delta * 0.005));
-          onZoomChange(newZoom);
-          lastPinchDist.current = dist;
-        }
-      }
-
-      // Two-finger pan
+      // Two-finger pan (always)
       if (lastPinchCenter.current && scrollContainerRef.current) {
         const panDx = centerX - lastPinchCenter.current.x;
         const panDy = centerY - lastPinchCenter.current.y;
@@ -639,6 +629,16 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
         scrollContainerRef.current.scrollTop -= panDy;
       }
       lastPinchCenter.current = { x: centerX, y: centerY };
+
+      // Pinch zoom (only if significant pinch, high threshold to avoid accidental zoom)
+      if (lastPinchDist.current !== null && onZoomChange) {
+        const delta = dist - lastPinchDist.current;
+        if (Math.abs(delta) > 12) {
+          const newZoom = Math.min(3, Math.max(0.3, zoomLevel + delta * 0.002));
+          onZoomChange(newZoom);
+          lastPinchDist.current = dist;
+        }
+      }
     }
   };
 
