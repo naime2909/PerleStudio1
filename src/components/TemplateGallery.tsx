@@ -7,12 +7,13 @@ import { Sparkles, Search, Filter, Heart, Leaf, Shapes, Star, Type, Copy, X, Tra
 interface TemplateGalleryProps {
   beadTypes: BeadType[];
   onApplyTemplate: (grid: PatternGrid, rows: number, columns: number, mode: StitchType) => void;
+  onInsertTemplate?: (grid: PatternGrid, rows: number, columns: number) => void;
   userTemplates?: UserTemplate[];
   isLoggedIn?: boolean;
   onDeleteUserTemplate?: (id: string) => Promise<boolean>;
 }
 
-const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTemplate, userTemplates = [], isLoggedIn = false, onDeleteUserTemplate }) => {
+const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTemplate, onInsertTemplate, userTemplates = [], isLoggedIn = false, onDeleteUserTemplate }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
@@ -93,12 +94,45 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTem
     setShowRepeatModal(true);
   };
 
-  const handleApplyWithRepeat = () => {
-    if (selectedTemplate) {
+  const handleApplyWithRepeat = (mode: 'replace' | 'insert' = 'replace') => {
+    if (!selectedTemplate) return;
+
+    if (mode === 'insert' && onInsertTemplate) {
+      // Build the template grid with repeats (same logic) but pass to insert handler
+      const newGrid: PatternGrid = {};
+      const colorToBeadMap: { [hex: string]: string } = {};
+      const uniqueColors = new Set(Object.values(selectedTemplate.beadColors));
+      uniqueColors.forEach(hex => {
+        const closestBead = findClosestBead(hex);
+        if (closestBead) colorToBeadMap[hex] = closestBead.id;
+      });
+
+      for (let ry = 0; ry < repeatY; ry++) {
+        for (let rx = 0; rx < repeatX; rx++) {
+          Object.entries(selectedTemplate.grid).forEach(([key]) => {
+            const [r, c] = key.split('-').map(Number);
+            const newR = r + (ry * selectedTemplate.rows);
+            const newC = c + (rx * selectedTemplate.columns);
+            const newKey = `${newR}-${newC}`;
+            const hex = selectedTemplate.beadColors[key];
+            if (hex && colorToBeadMap[hex]) {
+              newGrid[newKey] = colorToBeadMap[hex];
+            }
+          });
+        }
+      }
+
+      onInsertTemplate(
+        newGrid,
+        selectedTemplate.rows * repeatY,
+        selectedTemplate.columns * repeatX
+      );
+    } else {
       applyTemplate(selectedTemplate, repeatX, repeatY);
-      setShowRepeatModal(false);
-      setSelectedTemplate(null);
     }
+
+    setShowRepeatModal(false);
+    setSelectedTemplate(null);
   };
 
   // Find closest bead color (Euclidean distance in RGB space)
@@ -490,21 +524,35 @@ const TemplateGallery: React.FC<TemplateGalleryProps> = ({ beadTypes, onApplyTem
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 p-4 border-t border-slate-200">
+            <div className="p-4 border-t border-slate-200 space-y-2">
+              <div className="flex gap-2">
+                {onInsertTemplate && (
+                  <button
+                    onClick={() => handleApplyWithRepeat('insert')}
+                    className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors text-sm"
+                  >
+                    Insérer dans ma création
+                  </button>
+                )}
+                <button
+                  onClick={() => handleApplyWithRepeat('replace')}
+                  className={`flex-1 px-4 py-2.5 font-semibold rounded-lg transition-colors text-sm ${
+                    onInsertTemplate
+                      ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                      : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                  }`}
+                >
+                  {onInsertTemplate ? 'Remplacer tout' : 'Appliquer'}
+                </button>
+              </div>
               <button
                 onClick={() => {
                   setShowRepeatModal(false);
                   setSelectedTemplate(null);
                 }}
-                className="flex-1 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-lg transition-colors"
+                className="w-full px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold rounded-lg transition-colors text-sm"
               >
                 Annuler
-              </button>
-              <button
-                onClick={handleApplyWithRepeat}
-                className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors"
-              >
-                Appliquer
               </button>
             </div>
           </div>
