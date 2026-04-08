@@ -64,6 +64,8 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
   const lastPinchDist = useRef<number | null>(null);
   const lastPinchCenter = useRef<{x: number, y: number} | null>(null);
   const isTwoFingerGesture = useRef(false);
+  const touchDrawTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingTouchDraw = useRef<{r: number, c: number} | null>(null);
 
   // Responsive Cell Sizes
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
@@ -446,18 +448,16 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
   // --- Touch Handlers for Mobile Support ---
   const handleCellTouchStart = (e: React.TouchEvent, r: number, c: number) => {
     if (toolMode === 'move' || toolMode === 'polygon') return;
-    if (e.touches.length > 1 || isTwoFingerGesture.current) return; // Let two-finger gestures through
+    if (e.touches.length > 1 || isTwoFingerGesture.current) return;
     e.stopPropagation();
 
-    const touch = e.touches[0];
-    
-    // Paste Logic
+    // Paste Logic (immediate)
     if (toolMode === 'paste') {
         if (onPaste) onPaste({r, c});
         return;
     }
 
-    // Selection drag on touch
+    // Selection drag on touch (immediate)
     if (toolMode === 'select' && selection && isInsideSelection(r, c)) {
         setIsDraggingSelection(true);
         setSelDragStart({r, c});
@@ -465,21 +465,31 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
         return;
     }
 
-    // Drag Logic for shapes and selection
-    setIsDragging(true);
-    setStartPos({r, c});
-    setCurrentPos({r, c});
+    // Delay drawing to detect if a second finger arrives (two-finger gesture)
+    pendingTouchDraw.current = {r, c};
+    if (touchDrawTimer.current) clearTimeout(touchDrawTimer.current);
+    touchDrawTimer.current = setTimeout(() => {
+      if (isTwoFingerGesture.current) {
+        pendingTouchDraw.current = null;
+        return;
+      }
+      const pos = pendingTouchDraw.current;
+      if (!pos) return;
 
-    // Clear selection if starting a new one
-    if (toolMode === 'select' && onSelectionChange) {
-        onSelectionChange({r1: r, c1: c, r2: r, c2: c});
-    }
+      setIsDragging(true);
+      setStartPos(pos);
+      setCurrentPos(pos);
 
-    // Direct paint
-    if (toolMode === 'pencil' || toolMode === 'eraser') {
-       const bId = toolMode === 'eraser' ? null : selectedBeadId;
-       onUpdateGrid([{r, c, beadId: bId}]);
-    }
+      if (toolMode === 'select' && onSelectionChange) {
+          onSelectionChange({r1: pos.r, c1: pos.c, r2: pos.r, c2: pos.c});
+      }
+
+      if (toolMode === 'pencil' || toolMode === 'eraser') {
+         const bId = toolMode === 'eraser' ? null : selectedBeadId;
+         onUpdateGrid([{r: pos.r, c: pos.c, beadId: bId}]);
+      }
+      pendingTouchDraw.current = null;
+    }, 60);
   };
 
   const getCellFromTouch = (touch: React.Touch): {r: number, c: number} | null => {
@@ -596,7 +606,12 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
   const handleTouchStartPinch = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       isTwoFingerGesture.current = true;
-      // Cancel any drawing in progress
+      // Cancel any pending or in-progress drawing
+      if (touchDrawTimer.current) {
+        clearTimeout(touchDrawTimer.current);
+        touchDrawTimer.current = null;
+      }
+      pendingTouchDraw.current = null;
       setIsDragging(false);
       setIsDraggingSelection(false);
       setStartPos(null);
