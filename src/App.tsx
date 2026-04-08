@@ -1605,7 +1605,7 @@ const App: React.FC = () => {
       )}
 
       {/* TEMPLATES TAB */}
-      <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'templates' ? 'flex' : 'none' }}>
+      <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'templates' ? 'block' : 'none' }}>
         <TemplateGallery
           beadTypes={activeBeads}
           userTemplates={userTemplates}
@@ -1648,7 +1648,7 @@ const App: React.FC = () => {
       </div>
 
       {/* PROJECTS TAB */}
-      <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'projects' ? 'flex' : 'none' }}>
+      <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'projects' ? 'block' : 'none' }}>
         <ProjectsPanel
           onLoadProject={handleLoadProject}
           onNewProject={handleNewProject}
