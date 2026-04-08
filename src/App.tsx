@@ -663,13 +663,35 @@ const App: React.FC = () => {
   };
 
   // Handlers for tabs
+  // Ensure all colors used in the grid are in the bead palette
+  const ensureGridColorsInPalette = (grid: PatternGrid, beads: BeadType[]): BeadType[] => {
+    const beadMap = new Map(beads.map(b => [b.id, b]));
+    const usedIds = new Set(Object.values(grid));
+    let updated = [...beads];
+    let colorIndex = 0;
+    usedIds.forEach(beadId => {
+      if (!beadMap.has(beadId)) {
+        // Bead ID not in palette — create a placeholder with the ID
+        // Try to find the hex from PRESET_COLORS or generate one
+        updated.push({
+          id: beadId,
+          name: `Couleur ${++colorIndex}`,
+          color: beadId,
+          material: 'Mat' as any,
+          hex: beadId.startsWith('#') ? beadId : '#888888',
+        });
+      }
+    });
+    return updated;
+  };
+
   const handleLoadProject = (loadedProject: ProjectState, name: string, beads?: BeadType[]) => {
-    setHistory([migrateProject(loadedProject)]);
+    const migrated = migrateProject(loadedProject);
+    setHistory([migrated]);
     setHistoryIndex(0);
     setProjectName(name);
-    if (beads && beads.length > 0) {
-      setActiveBeads(beads);
-    }
+    const basePalette = (beads && beads.length > 0) ? beads : activeBeads;
+    setActiveBeads(ensureGridColorsInPalette(migrated.grid, basePalette));
     setActiveTab('editor');
   };
 
@@ -680,13 +702,13 @@ const App: React.FC = () => {
   };
 
   const handleLoadCloudProject = (cp: CloudProject) => {
-    setHistory([migrateProject(cp.project_data)]);
+    const migrated = migrateProject(cp.project_data);
+    setHistory([migrated]);
     setHistoryIndex(0);
     setProjectName(cp.name);
     setCurrentCloudId(cp.id);
-    if (cp.beads_data && cp.beads_data.length > 0) {
-      setActiveBeads(cp.beads_data);
-    }
+    const basePalette = (cp.beads_data && cp.beads_data.length > 0) ? cp.beads_data : activeBeads;
+    setActiveBeads(ensureGridColorsInPalette(migrated.grid, basePalette));
     if (cp.settings_data) {
       setSettings(cp.settings_data);
     }
@@ -1961,13 +1983,13 @@ const App: React.FC = () => {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Source Color */}
+              {/* Source Color — only colors used in the grid */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-2">
                   1️⃣ Couleur à remplacer :
                 </label>
                 <div className="grid grid-cols-4 gap-2">
-                  {activeBeads.map(bead => (
+                  {activeBeads.filter(bead => Object.values(project.grid).includes(bead.id)).map(bead => (
                     <button
                       key={bead.id}
                       onClick={() => setSourceColorId(bead.id)}
@@ -1981,6 +2003,9 @@ const App: React.FC = () => {
                     />
                   ))}
                 </div>
+                {activeBeads.filter(bead => Object.values(project.grid).includes(bead.id)).length === 0 && (
+                  <p className="text-xs text-slate-400 italic mt-2">Aucune perle placée sur la grille</p>
+                )}
               </div>
 
               {/* Target Color */}
