@@ -1718,6 +1718,15 @@ const App: React.FC = () => {
             getPublicProfile={cloud.getPublicProfile}
             getPublicProjects={cloud.getPublicProjects}
             sendFriendRequest={cloud.sendFriendRequest}
+            toggleLike={cloud.toggleLike}
+            copyShowcaseProject={async (project) => {
+              const newProject = await cloud.copyShowcaseProject(project);
+              if (newProject) {
+                const updated = await cloud.loadProjects();
+                setCloudProjects(updated);
+              }
+              return newProject;
+            }}
             getFriends={cloud.getFriends}
             onLoadProject={handleLoadProject}
             onBack={() => setActiveTab('showcase')}

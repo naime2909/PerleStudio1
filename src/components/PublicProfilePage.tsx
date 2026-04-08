@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, ArrowLeft, UserPlus, Check, Heart, Copy, Calendar, Eye, Clock } from 'lucide-react';
 import type { PublicProfile, ShowcaseProject } from '../hooks/useCloudStorage';
 import type { ProjectState, BeadType } from '../types';
+import ProjectPreviewModal from './ProjectPreviewModal';
 
 interface PublicProfilePageProps {
   profileId: string;
@@ -9,6 +10,8 @@ interface PublicProfilePageProps {
   getPublicProfile: (id: string) => Promise<PublicProfile | null>;
   getPublicProjects: (id: string) => Promise<ShowcaseProject[]>;
   sendFriendRequest: (addresseeId: string) => Promise<boolean>;
+  toggleLike?: (projectId: string) => Promise<{ liked: boolean; newCount: number } | null>;
+  copyShowcaseProject?: (project: ShowcaseProject) => Promise<any>;
   getFriends: () => Promise<any[]>;
   onLoadProject: (project: ProjectState, name: string, beads?: BeadType[]) => void;
   onBack: () => void;
@@ -22,6 +25,8 @@ const PublicProfilePage: React.FC<PublicProfilePageProps> = ({
   getPublicProfile,
   getPublicProjects,
   sendFriendRequest,
+  toggleLike,
+  copyShowcaseProject,
   getFriends,
   onLoadProject,
   onBack,
@@ -33,6 +38,9 @@ const PublicProfilePage: React.FC<PublicProfilePageProps> = ({
   const [loading, setLoading] = useState(true);
   const [friendStatus, setFriendStatus] = useState<'none' | 'pending' | 'accepted' | 'self'>('none');
   const [requestSent, setRequestSent] = useState(false);
+  const [previewProject, setPreviewProject] = useState<ShowcaseProject | null>(null);
+  const [copyingId, setCopyingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -44,7 +52,6 @@ const PublicProfilePage: React.FC<PublicProfilePageProps> = ({
       setProfile(profileData);
       setProjects(projectsData);
 
-      // Check friendship status
       if (currentUserId === profileId) {
         setFriendStatus('self');
       } else if (currentUserId) {
@@ -70,6 +77,42 @@ const PublicProfilePage: React.FC<PublicProfilePageProps> = ({
     if (ok) {
       setRequestSent(true);
       setFriendStatus('pending');
+    }
+  };
+
+  const handleLike = async (project: ShowcaseProject) => {
+    if (!isLoggedIn || !toggleLike) {
+      onRequireLogin();
+      return;
+    }
+    const result = await toggleLike(project.id);
+    if (result) {
+      const updater = (p: ShowcaseProject) =>
+        p.id === project.id ? { ...p, like_count: result.newCount, is_liked_by_me: result.liked } : p;
+      setProjects(prev => prev.map(updater));
+      if (previewProject?.id === project.id) {
+        setPreviewProject(prev => prev ? updater(prev) : prev);
+      }
+    }
+  };
+
+  const handleCopy = async (project: ShowcaseProject) => {
+    if (!isLoggedIn || !copyShowcaseProject) {
+      onRequireLogin();
+      return;
+    }
+    setCopyingId(project.id);
+    const newProject = await copyShowcaseProject(project);
+    setCopyingId(null);
+    if (newProject) {
+      setCopiedId(project.id);
+      setTimeout(() => setCopiedId(null), 2000);
+      const updater = (p: ShowcaseProject) =>
+        p.id === project.id ? { ...p, copy_count: p.copy_count + 1 } : p;
+      setProjects(prev => prev.map(updater));
+      if (previewProject?.id === project.id) {
+        setPreviewProject(prev => prev ? updater(prev) : prev);
+      }
     }
   };
 
@@ -141,7 +184,6 @@ const PublicProfilePage: React.FC<PublicProfilePageProps> = ({
                 </p>
               </div>
 
-              {/* Friend button */}
               {friendStatus !== 'self' && (
                 <div>
                   {friendStatus === 'accepted' ? (
@@ -164,7 +206,6 @@ const PublicProfilePage: React.FC<PublicProfilePageProps> = ({
               )}
             </div>
 
-            {/* Bio */}
             {profile.bio && (
               <p className="mt-3 text-sm text-slate-600 bg-slate-50 rounded-lg p-3 border border-slate-100">
                 {profile.bio}
@@ -190,18 +231,19 @@ const PublicProfilePage: React.FC<PublicProfilePageProps> = ({
               {projects.map((project) => (
                 <div
                   key={project.id}
-                  className="bg-white border-2 border-slate-200 rounded-xl overflow-hidden hover:border-indigo-300 hover:shadow-lg transition-all cursor-pointer"
-                  onClick={() => onLoadProject(project.project_data, project.name, project.beads_data || undefined)}
+                  className="bg-white border-2 border-slate-200 rounded-xl overflow-hidden hover:border-indigo-300 hover:shadow-lg transition-all cursor-pointer group"
+                  onClick={() => setPreviewProject(project)}
                 >
-                  <div className="bg-gradient-to-br from-slate-50 to-indigo-50 h-32 flex items-center justify-center overflow-hidden">
+                  <div className="bg-gradient-to-br from-slate-50 to-indigo-50 h-32 flex items-center justify-center overflow-hidden relative">
                     {project.thumbnail ? (
-                      <img src={project.thumbnail} alt={project.name} className="w-full h-full object-contain" />
+                      <img src={project.thumbnail} alt={project.name} className="w-full h-full object-contain p-2" />
                     ) : (
                       <Eye size={32} className="text-slate-300" />
                     )}
+                    <div className="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/5 transition-colors" />
                   </div>
                   <div className="p-3">
-                    <h4 className="font-semibold text-sm text-slate-800 truncate mb-2">{project.name}</h4>
+                    <h4 className="font-semibold text-sm text-slate-800 truncate mb-2 group-hover:text-indigo-600">{project.name}</h4>
                     <div className="flex items-center gap-3 text-xs text-slate-500">
                       <span className="flex items-center gap-1">
                         <Heart size={12} className={project.is_liked_by_me ? 'fill-red-500 text-red-500' : ''} />
@@ -222,6 +264,19 @@ const PublicProfilePage: React.FC<PublicProfilePageProps> = ({
           )}
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {previewProject && (
+        <ProjectPreviewModal
+          project={previewProject}
+          onClose={() => setPreviewProject(null)}
+          onLike={() => handleLike(previewProject)}
+          onCopy={() => handleCopy(previewProject)}
+          copying={copyingId === previewProject.id}
+          copied={copiedId === previewProject.id}
+          isLoggedIn={isLoggedIn}
+        />
+      )}
     </div>
   );
 };

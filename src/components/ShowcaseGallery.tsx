@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Heart, Copy, Search, TrendingUp, Clock, User, Eye, Sparkles, Grid } from 'lucide-react';
 import type { ShowcaseProject } from '../hooks/useCloudStorage';
 import type { ProjectState, BeadType } from '../types';
+import ProjectPreviewModal from './ProjectPreviewModal';
 
 interface ShowcaseGalleryProps {
   userId?: string;
@@ -30,6 +31,7 @@ const ShowcaseGallery: React.FC<ShowcaseGalleryProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [previewProject, setPreviewProject] = useState<ShowcaseProject | null>(null);
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -49,11 +51,12 @@ const ShowcaseGallery: React.FC<ShowcaseGalleryProps> = ({
     }
     const result = await toggleLike(project.id);
     if (result) {
-      setProjects(prev => prev.map(p =>
-        p.id === project.id
-          ? { ...p, like_count: result.newCount, is_liked_by_me: result.liked }
-          : p
-      ));
+      const updater = (p: ShowcaseProject) =>
+        p.id === project.id ? { ...p, like_count: result.newCount, is_liked_by_me: result.liked } : p;
+      setProjects(prev => prev.map(updater));
+      if (previewProject?.id === project.id) {
+        setPreviewProject(prev => prev ? updater(prev) : prev);
+      }
     }
   };
 
@@ -68,9 +71,12 @@ const ShowcaseGallery: React.FC<ShowcaseGalleryProps> = ({
     if (newProject) {
       setCopiedId(project.id);
       setTimeout(() => setCopiedId(null), 2000);
-      setProjects(prev => prev.map(p =>
-        p.id === project.id ? { ...p, copy_count: p.copy_count + 1 } : p
-      ));
+      const updater = (p: ShowcaseProject) =>
+        p.id === project.id ? { ...p, copy_count: p.copy_count + 1 } : p;
+      setProjects(prev => prev.map(updater));
+      if (previewProject?.id === project.id) {
+        setPreviewProject(prev => prev ? updater(prev) : prev);
+      }
     }
   };
 
@@ -98,7 +104,6 @@ const ShowcaseGallery: React.FC<ShowcaseGalleryProps> = ({
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
-          {/* Search */}
           <div className="relative flex-1">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -109,7 +114,6 @@ const ShowcaseGallery: React.FC<ShowcaseGalleryProps> = ({
               className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
             />
           </div>
-          {/* Sort */}
           <div className="flex bg-slate-100 rounded-xl p-1 shrink-0">
             <button
               onClick={() => setSortBy('recent')}
@@ -164,13 +168,11 @@ const ShowcaseGallery: React.FC<ShowcaseGalleryProps> = ({
             {filteredProjects.map((project) => (
               <div
                 key={project.id}
-                className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-indigo-300 hover:shadow-xl transition-all group"
+                className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:border-indigo-300 hover:shadow-xl transition-all group cursor-pointer"
+                onClick={() => setPreviewProject(project)}
               >
                 {/* Thumbnail */}
-                <div
-                  onClick={() => onLoadProject(project.project_data, project.name, project.beads_data || undefined)}
-                  className="bg-gradient-to-br from-slate-50 to-indigo-50 h-40 lg:h-44 flex items-center justify-center overflow-hidden cursor-pointer relative"
-                >
+                <div className="bg-gradient-to-br from-slate-50 to-indigo-50 h-40 lg:h-44 flex items-center justify-center overflow-hidden relative">
                   {project.thumbnail ? (
                     <img src={project.thumbnail} alt={project.name} className="w-full h-full object-contain p-2" />
                   ) : (
@@ -179,24 +181,17 @@ const ShowcaseGallery: React.FC<ShowcaseGalleryProps> = ({
                       <p className="text-xs text-slate-400">{project.project_data.columns}x{project.project_data.rows}</p>
                     </div>
                   )}
-                  {/* Hover overlay */}
                   <div className="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/5 transition-colors" />
                 </div>
 
                 {/* Info */}
                 <div className="p-3">
-                  <h3
-                    onClick={() => onLoadProject(project.project_data, project.name, project.beads_data || undefined)}
-                    className="font-semibold text-sm text-slate-800 mb-1.5 truncate hover:text-indigo-600 cursor-pointer"
-                  >
+                  <h3 className="font-semibold text-sm text-slate-800 mb-1.5 truncate group-hover:text-indigo-600">
                     {project.name}
                   </h3>
 
                   {/* Author */}
-                  <button
-                    onClick={() => onViewProfile(project.user_id)}
-                    className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-600 mb-3 transition-colors"
-                  >
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-3">
                     {project.author_avatar ? (
                       <img
                         src={project.author_avatar}
@@ -210,46 +205,18 @@ const ShowcaseGallery: React.FC<ShowcaseGalleryProps> = ({
                       </div>
                     )}
                     <span className="font-medium truncate">{project.author_username}</span>
-                  </button>
+                  </div>
 
-                  {/* Stats + Actions */}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                    <div className="flex items-center gap-3 text-xs text-slate-500">
-                      <span className="flex items-center gap-1">
-                        <Heart size={12} className={project.is_liked_by_me ? 'fill-red-500 text-red-500' : ''} />
-                        {project.like_count}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Copy size={12} />
-                        {project.copy_count}
-                      </span>
-                    </div>
-
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => handleLike(project)}
-                        className={`p-1.5 rounded-lg transition-all ${
-                          project.is_liked_by_me
-                            ? 'bg-red-50 text-red-500 hover:bg-red-100 scale-110'
-                            : 'bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500'
-                        }`}
-                        title={project.is_liked_by_me ? 'Retirer le like' : 'Liker'}
-                      >
-                        <Heart size={16} className={project.is_liked_by_me ? 'fill-current' : ''} />
-                      </button>
-                      <button
-                        onClick={() => handleCopy(project)}
-                        disabled={copyingId === project.id}
-                        className={`p-1.5 rounded-lg transition-all ${
-                          copiedId === project.id
-                            ? 'bg-green-100 text-green-600'
-                            : 'bg-slate-50 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600'
-                        } disabled:opacity-50`}
-                        title={copiedId === project.id ? 'Copié !' : 'Copier dans mes projets'}
-                      >
-                        <Copy size={16} />
-                      </button>
-                    </div>
+                  {/* Stats */}
+                  <div className="flex items-center gap-3 text-xs text-slate-500 pt-2 border-t border-slate-100">
+                    <span className="flex items-center gap-1">
+                      <Heart size={12} className={project.is_liked_by_me ? 'fill-red-500 text-red-500' : ''} />
+                      {project.like_count}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Copy size={12} />
+                      {project.copy_count}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -257,6 +224,20 @@ const ShowcaseGallery: React.FC<ShowcaseGalleryProps> = ({
           </div>
         )}
       </div>
+
+      {/* Preview Modal */}
+      {previewProject && (
+        <ProjectPreviewModal
+          project={previewProject}
+          onClose={() => setPreviewProject(null)}
+          onLike={() => handleLike(previewProject)}
+          onCopy={() => handleCopy(previewProject)}
+          onViewProfile={(id) => { setPreviewProject(null); onViewProfile(id); }}
+          copying={copyingId === previewProject.id}
+          copied={copiedId === previewProject.id}
+          isLoggedIn={isLoggedIn}
+        />
+      )}
     </div>
   );
 };
