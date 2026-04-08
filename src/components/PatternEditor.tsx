@@ -605,7 +605,7 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
       const dist = Math.hypot(dx, dy);
       const delta = dist - lastPinchDist.current;
       if (Math.abs(delta) > 5) {
-        const newZoom = Math.min(3, Math.max(0.5, zoomLevel + delta * 0.005));
+        const newZoom = Math.min(3, Math.max(0.2, zoomLevel + delta * 0.005));
         onZoomChange(newZoom);
         lastPinchDist.current = dist;
       }
@@ -641,7 +641,8 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
         onTouchMove={handleTouchMovePinch}
         onTouchEnd={handleTouchEndPinch}
       >
-        <div className="min-w-full min-h-full p-4 sm:p-8 flex items-start sm:items-center justify-center">
+        <div className="p-2 sm:p-8 flex items-start justify-start sm:justify-center sm:items-start"
+             style={{ minWidth: 'fit-content', minHeight: 'fit-content' }}>
           <div 
             data-grid-container
             className="relative bg-white shadow-sm border border-slate-200 select-none m-auto"
