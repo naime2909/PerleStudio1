@@ -184,6 +184,7 @@ export const useCloudStorage = (userId: string | undefined) => {
     return true;
   }, [userId]);
 
+
   const respondToFriendRequest = useCallback(async (friendshipId: string, accept: boolean) => {
     if (!userId || !supabaseConfigured) return false;
 

@@ -753,30 +753,54 @@ const App: React.FC = () => {
 
   // Handle URL parameters: ?invite=USER_ID or ?shared=PROJECT_ID
   useEffect(() => {
+    if (auth.loading) return;
+
     const params = new URLSearchParams(window.location.search);
     const inviteId = params.get('invite');
     const sharedId = params.get('shared');
 
-    if (inviteId || sharedId) {
-      // Clean URL without reloading
-      window.history.replaceState({}, '', window.location.pathname);
-    }
+    if (!inviteId && !sharedId) return;
 
-    // Store for after login if not logged in
-    if (inviteId) {
-      if (!auth.user && !auth.loading) {
+    // Clean URL without reloading
+    window.history.replaceState({}, '', window.location.pathname);
+
+    if (!auth.user) {
+      // Not logged in: store params and prompt login
+      if (inviteId) {
         localStorage.setItem('perlestudio_pending_invite', inviteId);
         setShowAuthModal(true);
         setInviteNotification({ type: 'invite', message: 'Connecte-toi pour accepter l\'invitation !' });
       }
-    }
-
-    if (sharedId) {
-      if (!auth.user && !auth.loading) {
+      if (sharedId) {
         localStorage.setItem('perlestudio_pending_shared', sharedId);
         setShowAuthModal(true);
         setInviteNotification({ type: 'shared', message: 'Connecte-toi pour voir le projet partagé !' });
       }
+      return;
+    }
+
+    // Already logged in: process immediately
+    if (inviteId && inviteId !== auth.user.id) {
+      cloud.getProfileById(inviteId).then((profile) => {
+        const name = profile?.username || 'cet utilisateur';
+        cloud.sendFriendRequest(inviteId).then((ok) => {
+          if (ok) {
+            setInviteNotification({ type: 'invite', message: `Demande d'ami envoyée à ${name} !` });
+            setTimeout(() => setInviteNotification(null), 4000);
+            setActiveTab('friends');
+          }
+        });
+      });
+    }
+
+    if (sharedId) {
+      cloud.getProjectById(sharedId).then((project) => {
+        if (project) {
+          if (confirm(`Ouvrir le projet "${project.name}" ?`)) {
+            handleLoadCloudProject(project);
+          }
+        }
+      });
     }
   }, [auth.loading]);
 
@@ -790,11 +814,15 @@ const App: React.FC = () => {
     if (pendingInvite) {
       localStorage.removeItem('perlestudio_pending_invite');
       if (pendingInvite !== auth.user.id) {
-        cloud.sendFriendRequest(pendingInvite).then((ok) => {
-          if (ok) {
-            setInviteNotification({ type: 'invite', message: 'Demande d\'ami envoyée !' });
-            setTimeout(() => setInviteNotification(null), 3000);
-          }
+        cloud.getProfileById(pendingInvite).then((profile) => {
+          const name = profile?.username || 'Utilisateur';
+          cloud.sendFriendRequest(pendingInvite).then((ok) => {
+            if (ok) {
+              setInviteNotification({ type: 'invite', message: `Demande d'ami envoyée à ${name} !` });
+              setTimeout(() => setInviteNotification(null), 4000);
+              setActiveTab('friends');
+            }
+          });
         });
       }
     }
@@ -813,42 +841,6 @@ const App: React.FC = () => {
       });
     }
   }, [auth.user]);
-
-  // Also check URL params directly if already logged in
-  useEffect(() => {
-    if (!auth.user || auth.loading) return;
-    const params = new URLSearchParams(window.location.search);
-    const inviteId = params.get('invite');
-    const sharedId = params.get('shared');
-
-    if (inviteId) {
-      window.history.replaceState({}, '', window.location.pathname);
-      if (inviteId !== auth.user.id) {
-        cloud.getProfileById(inviteId).then((profile) => {
-          if (profile && confirm(`Ajouter "${profile.username}" en ami ?`)) {
-            cloud.sendFriendRequest(inviteId).then((ok) => {
-              if (ok) {
-                setInviteNotification({ type: 'invite', message: `Demande envoyée à ${profile.username} !` });
-                setTimeout(() => setInviteNotification(null), 3000);
-                setActiveTab('friends');
-              }
-            });
-          }
-        });
-      }
-    }
-
-    if (sharedId) {
-      window.history.replaceState({}, '', window.location.pathname);
-      cloud.getProjectById(sharedId).then((project) => {
-        if (project) {
-          if (confirm(`Ouvrir le projet "${project.name}" ?`)) {
-            handleLoadCloudProject(project);
-          }
-        }
-      });
-    }
-  }, [auth.user, auth.loading]);
 
   return (
     <div className="h-[100dvh] bg-slate-100 text-slate-800 font-sans flex flex-col overflow-hidden">

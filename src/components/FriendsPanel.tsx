@@ -177,28 +177,38 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({
       </div>
 
       {/* Pending Received */}
-      {pendingReceived.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-bold text-amber-600 flex items-center gap-1">
-            <Clock size={14} /> Demandes reçues
-          </h3>
+      <div className="space-y-2">
+        <h3 className="text-sm font-bold text-amber-600 flex items-center gap-2">
+          <Clock size={14} /> Demandes reçues
+          {pendingReceived.length > 0 && (
+            <span className="bg-amber-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+              {pendingReceived.length}
+            </span>
+          )}
+        </h3>
+        {pendingReceived.length === 0 ? (
+          <p className="text-xs text-slate-400 italic px-2">Aucune demande en attente</p>
+        ) : (
           <div className="space-y-1">
             {pendingReceived.map((f: any) => {
               const profile = getFriendProfile(f);
               return (
-                <div key={f.id} className="flex items-center justify-between p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                  <span className="font-semibold text-sm">{profile?.username || 'Utilisateur'}</span>
-                  <div className="flex gap-1">
+                <div key={f.id} className="flex items-center justify-between p-2.5 bg-amber-50 border-2 border-amber-300 rounded-xl animate-pulse-slow">
+                  <div className="flex items-center gap-2">
+                    <UserPlus size={16} className="text-amber-600" />
+                    <span className="font-semibold text-sm">{profile?.username || 'Utilisateur'}</span>
+                  </div>
+                  <div className="flex gap-1.5">
                     <button
                       onClick={() => handleRespond(f.id, true)}
-                      className="p-1.5 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
+                      className="flex items-center gap-1 px-2.5 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 text-xs font-semibold"
                       title="Accepter"
                     >
-                      <Check size={14} />
+                      <Check size={14} /> Accepter
                     </button>
                     <button
                       onClick={() => handleRespond(f.id, false)}
-                      className="p-1.5 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+                      className="p-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200"
                       title="Refuser"
                     >
                       <X size={14} />
@@ -208,14 +218,17 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Pending Sent */}
       {pendingSent.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-bold text-slate-500 flex items-center gap-1">
+          <h3 className="text-sm font-bold text-slate-500 flex items-center gap-2">
             <Clock size={14} /> Demandes envoyées
+            <span className="bg-slate-400 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+              {pendingSent.length}
+            </span>
           </h3>
           <div className="space-y-1">
             {pendingSent.map((f: any) => {
@@ -223,7 +236,7 @@ const FriendsPanel: React.FC<FriendsPanelProps> = ({
               return (
                 <div key={f.id} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-lg">
                   <span className="text-sm text-slate-600">{profile?.username || 'Utilisateur'}</span>
-                  <span className="text-xs text-slate-400">En attente...</span>
+                  <span className="text-xs text-slate-400 italic">En attente...</span>
                 </div>
               );
             })}
