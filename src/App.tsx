@@ -1207,7 +1207,7 @@ const App: React.FC = () => {
                          <div className="flex items-center gap-2 lg:gap-4 shrink-0">
                              {/* Zoom Controls */}
                              <div className="flex items-center gap-0.5 lg:gap-1 bg-slate-100 rounded-md p-0.5 lg:p-1">
-                                 <button onClick={() => setZoomLevel(Math.max(0.2, zoomLevel - 0.25))} className="p-1 hover:bg-white rounded text-slate-500"><ZoomOut size={14}/></button>
+                                 <button onClick={() => setZoomLevel(Math.max(0.1, zoomLevel - 0.25))} className="p-1 hover:bg-white rounded text-slate-500"><ZoomOut size={14}/></button>
                                  <span className="text-[10px] lg:text-xs font-bold w-9 lg:w-12 text-center">{Math.round(zoomLevel * 100)}%</span>
                                  <button onClick={() => setZoomLevel(Math.min(3, zoomLevel + 0.25))} className="p-1 hover:bg-white rounded text-slate-500"><ZoomIn size={14}/></button>
                              </div>
@@ -1429,6 +1429,20 @@ const App: React.FC = () => {
         </aside>
 
       </div>
+
+      {/* MOBILE: Floating draw/navigate toggle */}
+      {activeTab === 'editor' && mobileTab === 'editor' && (
+        <button
+          onClick={() => setToolMode(toolMode === 'move' ? 'pencil' : 'move')}
+          className={`lg:hidden fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all active:scale-95 ${
+            toolMode === 'move'
+              ? 'bg-indigo-600 text-white ring-4 ring-indigo-300'
+              : 'bg-white text-slate-600 border-2 border-slate-300'
+          }`}
+        >
+          {toolMode === 'move' ? <Hand size={24} /> : <Pencil size={24} />}
+        </button>
+      )}
 
       {/* MOBILE BOTTOM NAV */}
       {activeTab === 'editor' && (

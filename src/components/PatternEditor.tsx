@@ -60,8 +60,10 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
   const [isDraggingOverlay, setIsDraggingOverlay] = useState(false);
   const [overlayDragStart, setOverlayDragStart] = useState({ x: 0, y: 0, overlayX: 0, overlayY: 0 });
 
-  // Pinch-to-zoom state
+  // Pinch-to-zoom & two-finger pan state
   const lastPinchDist = useRef<number | null>(null);
+  const lastPinchCenter = useRef<{x: number, y: number} | null>(null);
+  const isTwoFingerGesture = useRef(false);
 
   // Responsive Cell Sizes
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
@@ -443,8 +445,8 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
 
   // --- Touch Handlers for Mobile Support ---
   const handleCellTouchStart = (e: React.TouchEvent, r: number, c: number) => {
-    if (toolMode === 'move' || toolMode === 'polygon') return; // Polygon stays click-based
-    e.preventDefault();
+    if (toolMode === 'move' || toolMode === 'polygon') return;
+    if (e.touches.length > 1 || isTwoFingerGesture.current) return; // Let two-finger gestures through
     e.stopPropagation();
 
     const touch = e.touches[0];
@@ -496,6 +498,7 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
 
   const handleCellTouchMove = (e: React.TouchEvent) => {
     if (toolMode === 'polygon' || toolMode === 'move') return;
+    if (e.touches.length > 1 || isTwoFingerGesture.current) return;
 
     const touch = e.touches[0];
     const cell = getCellFromTouch(touch);
@@ -589,32 +592,61 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
   }
 
   // Grid Dimensions
-  // Pinch-to-zoom handlers
+  // Two-finger gesture handlers (pinch zoom + pan)
   const handleTouchStartPinch = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
+      isTwoFingerGesture.current = true;
+      // Cancel any drawing in progress
+      setIsDragging(false);
+      setIsDraggingSelection(false);
+      setStartPos(null);
+
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       lastPinchDist.current = Math.hypot(dx, dy);
+      lastPinchCenter.current = {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+      };
+      e.preventDefault();
     }
   };
 
   const handleTouchMovePinch = (e: React.TouchEvent) => {
-    if (e.touches.length === 2 && lastPinchDist.current !== null && onZoomChange) {
+    if (e.touches.length === 2 && isTwoFingerGesture.current) {
+      e.preventDefault();
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const dist = Math.hypot(dx, dy);
-      const delta = dist - lastPinchDist.current;
-      if (Math.abs(delta) > 5) {
-        const newZoom = Math.min(3, Math.max(0.2, zoomLevel + delta * 0.005));
-        onZoomChange(newZoom);
-        lastPinchDist.current = dist;
+      const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+      // Pinch zoom
+      if (lastPinchDist.current !== null && onZoomChange) {
+        const delta = dist - lastPinchDist.current;
+        if (Math.abs(delta) > 3) {
+          const newZoom = Math.min(3, Math.max(0.1, zoomLevel + delta * 0.005));
+          onZoomChange(newZoom);
+          lastPinchDist.current = dist;
+        }
       }
-      e.preventDefault();
+
+      // Two-finger pan
+      if (lastPinchCenter.current && scrollContainerRef.current) {
+        const panDx = centerX - lastPinchCenter.current.x;
+        const panDy = centerY - lastPinchCenter.current.y;
+        scrollContainerRef.current.scrollLeft -= panDx;
+        scrollContainerRef.current.scrollTop -= panDy;
+      }
+      lastPinchCenter.current = { x: centerX, y: centerY };
     }
   };
 
   const handleTouchEndPinch = () => {
     lastPinchDist.current = null;
+    lastPinchCenter.current = null;
+    // Small delay to prevent accidental draw after releasing two fingers
+    setTimeout(() => { isTwoFingerGesture.current = false; }, 100);
   };
 
   // Offset helper: determines if a column/row should be offset based on stitchStep
@@ -634,7 +666,7 @@ const PatternEditor: React.FC<PatternEditorProps> = ({
       <div
         ref={scrollContainerRef}
         className={`flex-1 overflow-auto bg-slate-100/50 relative scrollbar-thin scrollbar-thumb-slate-300 min-h-0 ${toolMode === 'move' ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
-        style={{ touchAction: toolMode === 'move' ? 'none' : 'pan-x pan-y' }}
+        style={{ touchAction: 'none' }}
         onMouseDown={handleContainerMouseDown}
         onMouseMove={handleContainerMouseMove}
         onTouchStart={handleTouchStartPinch}
