@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SavedProject, useLocalStorage } from '../useLocalStorage';
-import { Folder, Trash2, Edit2, Download, Upload, Plus, Clock, Cloud, Monitor, Link, Check, Eye, EyeOff, Heart, Copy, Sparkles } from 'lucide-react';
+import { Folder, Trash2, Edit2, Download, Upload, Plus, Clock, Cloud, Monitor, Link, Check, Eye, EyeOff, Heart, Copy, Sparkles, Camera, X, Image as ImageIcon } from 'lucide-react';
 import { ProjectState, BeadType, ProjectVisibility } from '../types';
 import MiniGridPreview from './MiniGridPreview';
 import type { CloudProject } from '../hooks/useCloudStorage';
@@ -14,11 +14,13 @@ interface ProjectsPanelProps {
   onRenameCloudProject?: (id: string, name: string) => Promise<boolean>;
   onSetProjectPublic?: (id: string, isPublic: boolean) => Promise<boolean>;
   onSetProjectVisibility?: (id: string, visibility: ProjectVisibility) => Promise<boolean>;
+  onUploadPhoto?: (projectId: string, file: File) => Promise<string | null>;
+  onRemovePhoto?: (projectId: string) => Promise<boolean>;
   projectStats?: Record<string, { likes: number; copies: number }>;
   isLoggedIn?: boolean;
 }
 
-const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProject, cloudProjects = [], onLoadCloudProject, onDeleteCloudProject, onRenameCloudProject, onSetProjectPublic, onSetProjectVisibility, projectStats = {}, isLoggedIn = false }) => {
+const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProject, cloudProjects = [], onLoadCloudProject, onDeleteCloudProject, onRenameCloudProject, onSetProjectPublic, onSetProjectVisibility, onUploadPhoto, onRemovePhoto, projectStats = {}, isLoggedIn = false }) => {
   const storage = useLocalStorage();
   const [projects, setProjects] = useState<SavedProject[]>(storage.loadProjects());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -98,6 +100,21 @@ const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProje
   };
 
   const [togglingShowcase, setTogglingShowcase] = useState<string | null>(null);
+  const [uploadingPhotoId, setUploadingPhotoId] = useState<string | null>(null);
+  const [showPhotoId, setShowPhotoId] = useState<string | null>(null);
+
+  const handlePhotoUpload = async (cp: CloudProject, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onUploadPhoto) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('L\'image ne doit pas dépasser 5 Mo');
+      return;
+    }
+    setUploadingPhotoId(cp.id);
+    await onUploadPhoto(cp.id, file);
+    setUploadingPhotoId(null);
+    e.target.value = '';
+  };
 
   const handleToggleShowcase = async (cp: CloudProject) => {
     if (!onSetProjectVisibility) return;
@@ -265,6 +282,25 @@ const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProje
                       </div>
                     )}
 
+                    {/* Photo du projet physique */}
+                    {cp.photo_url && (
+                      <div className="mb-2 relative">
+                        <img
+                          src={cp.photo_url}
+                          alt="Photo du projet"
+                          className="w-full h-20 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-90"
+                          onClick={(e) => { e.stopPropagation(); setShowPhotoId(showPhotoId === cp.id ? null : cp.id); }}
+                        />
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onRemovePhoto?.(cp.id); }}
+                          className="absolute top-1 right-1 p-0.5 bg-red-500 text-white rounded-full hover:bg-red-600"
+                          title="Supprimer la photo"
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    )}
+
                     <div className="flex gap-1 flex-wrap">
                       <button
                         onClick={() => onLoadCloudProject?.(cp)}
@@ -284,6 +320,29 @@ const ProjectsPanel: React.FC<ProjectsPanelProps> = ({ onLoadProject, onNewProje
                       >
                         {(cp as any).visibility === 'showcased' ? <EyeOff size={14} /> : <Sparkles size={14} />}
                       </button>
+                      <label
+                        className={`px-2 py-1.5 rounded transition-colors cursor-pointer ${
+                          uploadingPhotoId === cp.id
+                            ? 'bg-green-100 text-green-600'
+                            : cp.photo_url
+                              ? 'bg-green-50 text-green-600 hover:bg-green-100'
+                              : 'bg-slate-100 text-slate-500 hover:bg-green-50 hover:text-green-600'
+                        }`}
+                        title={cp.photo_url ? 'Changer la photo' : 'Ajouter une photo du résultat'}
+                      >
+                        {uploadingPhotoId === cp.id ? (
+                          <div className="w-3.5 h-3.5 border-2 border-green-300 border-t-green-600 rounded-full animate-spin" />
+                        ) : (
+                          <Camera size={14} />
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handlePhotoUpload(cp, e)}
+                          disabled={uploadingPhotoId === cp.id}
+                        />
+                      </label>
                       <button
                         onClick={() => handleCopyShareLink(cp)}
                         className={`px-2 py-1.5 rounded transition-colors ${

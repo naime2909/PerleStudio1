@@ -1705,6 +1705,22 @@ const App: React.FC = () => {
             }
             return ok;
           }}
+          onUploadPhoto={async (projectId, file) => {
+            const url = await cloud.uploadProjectPhoto(projectId, file);
+            if (url) {
+              const updated = await cloud.loadProjects();
+              setCloudProjects(updated);
+            }
+            return url;
+          }}
+          onRemovePhoto={async (projectId) => {
+            const ok = await cloud.removeProjectPhoto(projectId);
+            if (ok) {
+              const updated = await cloud.loadProjects();
+              setCloudProjects(updated);
+            }
+            return ok;
+          }}
           projectStats={projectStats}
           isLoggedIn={!!auth.user}
         />

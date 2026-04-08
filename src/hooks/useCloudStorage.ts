@@ -27,6 +27,7 @@ export interface CloudProject {
   beads_data: BeadType[] | null;
   settings_data: ProjectSettings | null;
   thumbnail: string | null;
+  photo_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -43,6 +44,7 @@ export interface ShowcaseProject {
   beads_data: BeadType[] | null;
   settings_data: ProjectSettings | null;
   thumbnail: string | null;
+  photo_url: string | null;
   created_at: string;
   updated_at: string;
   author_username: string;
@@ -539,6 +541,7 @@ export const useCloudStorage = (userId: string | undefined) => {
       beads_data: p.beads_data,
       settings_data: p.settings_data,
       thumbnail: p.thumbnail,
+      photo_url: p.photo_url || null,
       created_at: p.created_at,
       updated_at: p.updated_at,
       author_username: p.author?.username || 'Inconnu',
@@ -678,6 +681,7 @@ export const useCloudStorage = (userId: string | undefined) => {
       beads_data: p.beads_data,
       settings_data: p.settings_data,
       thumbnail: p.thumbnail,
+      photo_url: p.photo_url || null,
       created_at: p.created_at,
       updated_at: p.updated_at,
       author_username: p.author?.username || 'Inconnu',
@@ -686,6 +690,65 @@ export const useCloudStorage = (userId: string | undefined) => {
       copy_count: copyCounts[p.id] || 0,
       is_liked_by_me: myLikes.includes(p.id),
     }));
+  }, [userId]);
+
+  const uploadProjectPhoto = useCallback(async (projectId: string, file: File): Promise<string | null> => {
+    if (!userId || !supabaseConfigured) return null;
+
+    // Validate
+    if (!file.type.startsWith('image/')) return null;
+    if (file.size > 5 * 1024 * 1024) return null; // 5MB max
+
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${userId}/${projectId}.${fileExt}`;
+
+    // Upload to Supabase Storage
+    const { error: uploadErr } = await supabase.storage
+      .from('project-photos')
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadErr) {
+      console.error('Error uploading photo:', uploadErr);
+      return null;
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('project-photos')
+      .getPublicUrl(filePath);
+
+    const photoUrl = urlData.publicUrl + '?t=' + Date.now();
+
+    // Update project record
+    const { error: updateErr } = await supabase
+      .from('projects')
+      .update({ photo_url: photoUrl })
+      .eq('id', projectId)
+      .eq('user_id', userId);
+
+    if (updateErr) {
+      console.error('Error saving photo URL:', updateErr);
+      return null;
+    }
+
+    return photoUrl;
+  }, [userId]);
+
+  const removeProjectPhoto = useCallback(async (projectId: string): Promise<boolean> => {
+    if (!userId || !supabaseConfigured) return false;
+
+    // Remove from project record
+    const { error } = await supabase
+      .from('projects')
+      .update({ photo_url: null })
+      .eq('id', projectId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error removing photo:', error);
+      return false;
+    }
+    return true;
   }, [userId]);
 
   const updateBio = useCallback(async (bio: string): Promise<boolean> => {
@@ -753,6 +816,8 @@ export const useCloudStorage = (userId: string | undefined) => {
     getPublicProjects,
     updateBio,
     getProjectStats,
+    uploadProjectPhoto,
+    removeProjectPhoto,
     // Templates
     loadTemplates,
     saveTemplate,

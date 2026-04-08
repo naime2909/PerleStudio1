@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { X, Heart, Copy, User, Calendar, Grid, Maximize2 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { X, Heart, Copy, User, Calendar, Grid, Camera } from 'lucide-react';
 import type { ShowcaseProject } from '../hooks/useCloudStorage';
 import type { ProjectState, BeadType } from '../types';
 
@@ -25,6 +25,7 @@ const ProjectPreviewModal: React.FC<ProjectPreviewModalProps> = ({
   isLoggedIn = false,
 }) => {
   const { project_data, beads_data } = project;
+  const [viewTab, setViewTab] = useState<'grid' | 'photo'>('grid');
 
   // Build color map from beads
   const beadColors = useMemo(() => {
@@ -100,44 +101,83 @@ const ProjectPreviewModal: React.FC<ProjectPreviewModalProps> = ({
           </button>
         </div>
 
-        {/* Grid Preview */}
-        <div className="flex-1 overflow-auto bg-slate-50 flex items-center justify-center p-6">
-          <div
-            className="bg-white rounded-xl shadow-inner border border-slate-200 p-3"
-            style={{ maxWidth: '100%', overflow: 'auto' }}
-          >
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${project_data.columns}, ${cellSize}px)`,
-                gridTemplateRows: `repeat(${project_data.rows}, ${cellSize}px)`,
-                gap: '0px',
-                width: gridWidth,
-                height: gridHeight,
-              }}
+        {/* View tabs (only if photo exists) */}
+        {project.photo_url && (
+          <div className="flex bg-slate-50 border-b border-slate-200 px-4 shrink-0">
+            <button
+              onClick={() => setViewTab('grid')}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+                viewTab === 'grid'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
             >
-              {Array.from({ length: project_data.rows }, (_, r) =>
-                Array.from({ length: project_data.columns }, (_, c) => {
-                  const key = `${r}-${c}`;
-                  const beadId = project_data.grid[key];
-                  const color = beadId ? beadColors[beadId] : undefined;
-                  return (
-                    <div
-                      key={key}
-                      style={{
-                        width: cellSize,
-                        height: cellSize,
-                        backgroundColor: color || '#f8fafc',
-                        borderRight: c < project_data.columns - 1 ? '1px solid #e2e8f0' : 'none',
-                        borderBottom: r < project_data.rows - 1 ? '1px solid #e2e8f0' : 'none',
-                      }}
-                    />
-                  );
-                })
-              )}
+              <Grid size={14} /> Motif
+            </button>
+            <button
+              onClick={() => setViewTab('photo')}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+                viewTab === 'photo'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Camera size={14} /> Photo réelle
+            </button>
+          </div>
+        )}
+
+        {/* Grid Preview */}
+        {viewTab === 'grid' && (
+          <div className="flex-1 overflow-auto bg-slate-50 flex items-center justify-center p-6">
+            <div
+              className="bg-white rounded-xl shadow-inner border border-slate-200 p-3"
+              style={{ maxWidth: '100%', overflow: 'auto' }}
+            >
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${project_data.columns}, ${cellSize}px)`,
+                  gridTemplateRows: `repeat(${project_data.rows}, ${cellSize}px)`,
+                  gap: '0px',
+                  width: gridWidth,
+                  height: gridHeight,
+                }}
+              >
+                {Array.from({ length: project_data.rows }, (_, r) =>
+                  Array.from({ length: project_data.columns }, (_, c) => {
+                    const key = `${r}-${c}`;
+                    const beadId = project_data.grid[key];
+                    const color = beadId ? beadColors[beadId] : undefined;
+                    return (
+                      <div
+                        key={key}
+                        style={{
+                          width: cellSize,
+                          height: cellSize,
+                          backgroundColor: color || '#f8fafc',
+                          borderRight: c < project_data.columns - 1 ? '1px solid #e2e8f0' : 'none',
+                          borderBottom: r < project_data.rows - 1 ? '1px solid #e2e8f0' : 'none',
+                        }}
+                      />
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Photo Preview */}
+        {viewTab === 'photo' && project.photo_url && (
+          <div className="flex-1 overflow-auto bg-slate-900 flex items-center justify-center p-4">
+            <img
+              src={project.photo_url}
+              alt={`Photo de ${project.name}`}
+              className="max-w-full max-h-full object-contain rounded-lg shadow-lg"
+            />
+          </div>
+        )}
 
         {/* Footer */}
         <div className="p-4 border-t border-slate-100 shrink-0">
@@ -153,6 +193,11 @@ const ProjectPreviewModal: React.FC<ProjectPreviewModalProps> = ({
                 <Calendar size={14} />
                 {formatDate(project.updated_at)}
               </span>
+              {project.photo_url && (
+                <span className="flex items-center gap-1 text-green-600">
+                  <Camera size={14} /> Photo
+                </span>
+              )}
             </div>
 
             {/* Actions */}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Heart, Copy, Search, TrendingUp, Clock, User, Eye, Sparkles, Grid } from 'lucide-react';
+import { Heart, Copy, Search, TrendingUp, Clock, User, Eye, Sparkles, Grid, Camera } from 'lucide-react';
 import type { ShowcaseProject } from '../hooks/useCloudStorage';
 import type { ProjectState, BeadType } from '../types';
 import ProjectPreviewModal from './ProjectPreviewModal';
@@ -181,6 +181,11 @@ const ShowcaseGallery: React.FC<ShowcaseGalleryProps> = ({
                     height={170}
                   />
                   <div className="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/5 transition-colors" />
+                  {project.photo_url && (
+                    <div className="absolute top-2 left-2 bg-green-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                      <Camera size={10} /> Photo
+                    </div>
+                  )}
                 </div>
 
                 {/* Info */}
