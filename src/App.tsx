@@ -1689,7 +1689,7 @@ const App: React.FC = () => {
       </div>
 
       {/* SHOWCASE TAB */}
-      <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'showcase' ? 'flex' : 'none' }}>
+      <div className="flex-1 overflow-hidden" style={{ display: activeTab === 'showcase' ? 'block' : 'none' }}>
         <ShowcaseGallery
           userId={auth.user?.id}
           getShowcaseProjects={cloud.getShowcaseProjects}
