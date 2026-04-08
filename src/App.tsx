@@ -21,7 +21,7 @@ import SaveModal from './components/SaveModal';
 import { useAuth } from './hooks/useAuth';
 import { useCloudStorage, CloudProject, UserTemplate } from './hooks/useCloudStorage';
 import { useLocalStorage, AUTO_SAVE_INTERVAL } from './useLocalStorage';
-import { Info, Menu, X, Trash2, Eraser, Hand, Sparkles, Undo2, Redo2, Square, Circle, Pencil, Pentagon, CheckSquare, Palette, Grid, ClipboardList, Layout, Image as ImageIcon, Sliders, Crosshair, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Move, Layers, ZoomIn, ZoomOut, Scissors, Copy, ClipboardCopy, MousePointer2, Eye, EyeOff, Minus, Plus, Pipette, PaintBucket, Cloud, CloudOff, Users, Share2 } from 'lucide-react';
+import { Info, Menu, X, Trash2, Eraser, Hand, Sparkles, Undo2, Redo2, Square, Circle, Pencil, Pentagon, CheckSquare, Palette, Grid, ClipboardList, Layout, Image as ImageIcon, Sliders, Crosshair, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Move, Layers, ZoomIn, ZoomOut, Scissors, Copy, ClipboardCopy, MousePointer2, Eye, EyeOff, Minus, Plus, Pipette, PaintBucket, Cloud, CloudOff, Users, Share2, RotateCw, FlipHorizontal, FlipVertical } from 'lucide-react';
 
 const App: React.FC = () => {
   // -- Auth & Cloud --
@@ -64,6 +64,38 @@ const App: React.FC = () => {
   // Selection & Clipboard
   const [selection, setSelection] = useState<SelectionArea | null>(null);
   const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
+
+  // Clipboard transforms
+  const rotateClipboard = () => {
+    if (!clipboard) return;
+    const newGrid: PatternGrid = {};
+    Object.entries(clipboard.grid).forEach(([key, beadId]) => {
+      const [r, c] = key.split('-').map(Number);
+      // 90° clockwise: (r, c) -> (c, height - 1 - r)
+      newGrid[`${c}-${clipboard.height - 1 - r}`] = beadId;
+    });
+    setClipboard({ width: clipboard.height, height: clipboard.width, grid: newGrid });
+  };
+
+  const flipClipboardH = () => {
+    if (!clipboard) return;
+    const newGrid: PatternGrid = {};
+    Object.entries(clipboard.grid).forEach(([key, beadId]) => {
+      const [r, c] = key.split('-').map(Number);
+      newGrid[`${r}-${clipboard.width - 1 - c}`] = beadId;
+    });
+    setClipboard({ ...clipboard, grid: newGrid });
+  };
+
+  const flipClipboardV = () => {
+    if (!clipboard) return;
+    const newGrid: PatternGrid = {};
+    Object.entries(clipboard.grid).forEach(([key, beadId]) => {
+      const [r, c] = key.split('-').map(Number);
+      newGrid[`${clipboard.height - 1 - r}-${c}`] = beadId;
+    });
+    setClipboard({ ...clipboard, grid: newGrid });
+  };
 
   // Overlay State (Image de calque)
   const [overlay, setOverlay] = useState<OverlayImage | null>(null);
@@ -1409,7 +1441,23 @@ const App: React.FC = () => {
                                 </div>
                              )}
 
-                             {toolMode === 'paste' && <span className="text-[10px] lg:text-xs text-indigo-600 font-bold animate-pulse whitespace-nowrap">Coller</span>}
+                             {toolMode === 'paste' && clipboard && (
+                               <div className="flex items-center gap-1">
+                                 <span className="text-[10px] lg:text-xs text-indigo-600 font-bold animate-pulse whitespace-nowrap">Coller</span>
+                                 <div className="flex items-center gap-0.5 ml-1 bg-indigo-50 rounded-lg p-0.5">
+                                   <button onClick={rotateClipboard} className="p-1 lg:p-1.5 text-indigo-600 hover:bg-indigo-100 rounded" title="Tourner 90°">
+                                     <RotateCw size={14}/>
+                                   </button>
+                                   <button onClick={flipClipboardH} className="p-1 lg:p-1.5 text-indigo-600 hover:bg-indigo-100 rounded" title="Miroir horizontal">
+                                     <FlipHorizontal size={14}/>
+                                   </button>
+                                   <button onClick={flipClipboardV} className="p-1 lg:p-1.5 text-indigo-600 hover:bg-indigo-100 rounded" title="Miroir vertical">
+                                     <FlipVertical size={14}/>
+                                   </button>
+                                 </div>
+                                 <span className="text-[10px] text-indigo-400">{clipboard.width}×{clipboard.height}</span>
+                               </div>
+                             )}
                          </div>
 
                          {/* Preview Toggle */}
