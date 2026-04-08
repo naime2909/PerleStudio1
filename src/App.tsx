@@ -64,6 +64,7 @@ const App: React.FC = () => {
   // Selection & Clipboard
   const [selection, setSelection] = useState<SelectionArea | null>(null);
   const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
+  const [pasteRotateMode, setPasteRotateMode] = useState(false);
 
   // Clipboard transforms
   const rotateClipboard = () => {
@@ -176,7 +177,7 @@ const App: React.FC = () => {
         }
         if (e.key === 'Escape') {
             if (toolMode === 'select') setSelection(null);
-            if (toolMode === 'paste') setToolMode('select');
+            if (toolMode === 'paste') { setToolMode('select'); setPasteRotateMode(false); }
         }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -1443,9 +1444,15 @@ const App: React.FC = () => {
 
                              {toolMode === 'paste' && clipboard && (
                                <div className="flex items-center gap-1">
-                                 <span className="text-[10px] lg:text-xs text-indigo-600 font-bold animate-pulse whitespace-nowrap">Coller</span>
+                                 <span className={`text-[10px] lg:text-xs font-bold whitespace-nowrap ${pasteRotateMode ? 'text-orange-600' : 'text-indigo-600 animate-pulse'}`}>
+                                   {pasteRotateMode ? 'Clic = tourner' : 'Clic = coller'}
+                                 </span>
                                  <div className="flex items-center gap-0.5 ml-1 bg-indigo-50 rounded-lg p-0.5">
-                                   <button onClick={rotateClipboard} className="p-1 lg:p-1.5 text-indigo-600 hover:bg-indigo-100 rounded" title="Tourner 90°">
+                                   <button
+                                     onClick={() => setPasteRotateMode(!pasteRotateMode)}
+                                     className={`p-1 lg:p-1.5 rounded transition-all ${pasteRotateMode ? 'bg-orange-500 text-white shadow-sm' : 'text-indigo-600 hover:bg-indigo-100'}`}
+                                     title={pasteRotateMode ? 'Désactiver rotation (clic = coller)' : 'Activer rotation (clic = tourner)'}
+                                   >
                                      <RotateCw size={14}/>
                                    </button>
                                    <button onClick={flipClipboardH} className="p-1 lg:p-1.5 text-indigo-600 hover:bg-indigo-100 rounded" title="Miroir horizontal">
@@ -1524,6 +1531,11 @@ const App: React.FC = () => {
                             onSelectionChange={setSelection}
                             clipboard={clipboard}
                             onPaste={(pos) => {
+                                if (clipboard && pasteRotateMode) {
+                                    // In rotate mode, click rotates instead of pasting
+                                    rotateClipboard();
+                                    return;
+                                }
                                 if (clipboard) {
                                     const centerR = Math.floor(clipboard.height / 2);
                                     const centerC = Math.floor(clipboard.width / 2);
